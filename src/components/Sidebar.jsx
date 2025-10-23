@@ -128,7 +128,7 @@ function Header({ role, isDark, onToggleTheme }) {
   return (
     <div className="p-4">
       <div className="flex items-center justify-between">
-        <img src="/nexatrader.png" alt="Nexa Trader" className="h-12 w-60 object-contain" />
+        <img src="/logo.png" alt="zuperior Trader" className="h-12 w-60 object-contain" />
         <button
           onClick={onToggleTheme}
           className={`p-2 rounded-lg transition-colors ${

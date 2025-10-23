@@ -14,7 +14,7 @@ export default function App() {
         {adminRoutes.map((r) => (
           <Route key={`ad-${r.path}`} path={`/${r.path}`} element={r.element} />
         ))}
-        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
       </Route>
 
     

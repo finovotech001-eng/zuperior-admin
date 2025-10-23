@@ -23,7 +23,7 @@ const kpiCards = [
 ];
 
 const recent = [
-  { id: 1, when: "2m ago",  who: "sarah@nexatrader.io", what: "Approved KYC",      icon: UserCheck, tone:"text-emerald-600" },
+  { id: 1, when: "2m ago",  who: "sarah@zuperior.io", what: "Approved KYC",      icon: UserCheck, tone:"text-emerald-600" },
   { id: 2, when: "10m ago", who: "desk@ops",      what: "Processed payout",  icon: Upload,     tone:"text-sky-600" },
   { id: 3, when: "25m ago", who: "mike@ib",       what: "New IB request",    icon: Users,      tone:"text-indigo-600" },
   { id: 4, when: "1h ago",  who: "bridge",        what: "LP fill +$32k",     icon: TrendingUp, tone:"text-cyan-600" },
