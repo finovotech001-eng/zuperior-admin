@@ -2,7 +2,27 @@
 import BrandCard from "../components/BrandCard.jsx";
 import ProTable from "../components/ProTable.jsx";
 import EmptyState from "../components/EmptyState.jsx";
+import KycList from "../pages/admin/KycList.jsx";
 import Dashboard from "../pages/admin/Dashboard.jsx";
+import UsersAll from "../pages/admin/UsersAll.jsx";
+import UsersView from "../pages/admin/UsersView.jsx";
+import UsersActive from "../pages/admin/UsersActive.jsx";
+import UsersBanned from "../pages/admin/UsersBanned.jsx";
+import UsersEmailUnverified from "../pages/admin/UsersEmailUnverified.jsx";
+import AddUser from "../pages/admin/AddUser.jsx";
+import UsersWithBalance from "../pages/admin/UsersWithBalance.jsx";
+import MT5Users from "../pages/admin/MT5Users.jsx";
+import MT5Assign from "../pages/admin/MT5Assign.jsx";
+import DepositsPending from "../pages/admin/DepositsPending.jsx";
+import DepositsApproved from "../pages/admin/DepositsApproved.jsx";
+import DepositsRejected from "../pages/admin/DepositsRejected.jsx";
+import DepositsAll from "../pages/admin/DepositsAll.jsx";
+import WithdrawalsPending from "../pages/admin/WithdrawalsPending.jsx";
+import WithdrawalsApproved from "../pages/admin/WithdrawalsApproved.jsx";
+import WithdrawalsRejected from "../pages/admin/WithdrawalsRejected.jsx";
+import WithdrawalsAll from "../pages/admin/WithdrawalsAll.jsx";
+import BulkLogs from "../pages/admin/BulkLogs.jsx";
+import SendEmails from "../pages/admin/SendEmails.jsx";
 /** Admin Dashboard */
 
 export default [
@@ -21,15 +41,16 @@ export default [
 
   /* ------------------------ CLIENTS & ACCESS -------------------------- */
   { path: "/admin/users",                     element: <EmptyState title="Manage Users" subtitle="User management overview" /> },
-  { path: "/admin/users/add",                 element: <EmptyState title="Add User" subtitle="Create a new user" /> },
-  { path: "/admin/users/all",                 element: <EmptyState title="All Users" subtitle="Full user list" /> },
-  { path: "/admin/users/active",              element: <EmptyState title="Active Users" subtitle="Logged in recently" /> },
-  { path: "/admin/users/banned",              element: <EmptyState title="Banned Users" subtitle="Access restricted" /> },
-  { path: "/admin/users/email-unverified",    element: <EmptyState title="Email Unverified" subtitle="Users pending email verification" /> },
+  { path: "/admin/users/add",                 element: <AddUser /> },
+  { path: "/admin/users/all",                 element: <UsersAll /> },
+  { path: "/admin/users/:id",                 element: <UsersView /> },
+  { path: "/admin/users/active",              element: <UsersActive /> },
+  { path: "/admin/users/banned",              element: <UsersBanned /> },
+  { path: "/admin/users/email-unverified",    element: <UsersEmailUnverified /> },
   { path: "/admin/users/kyc-unverified",      element: <EmptyState title="KYC Unverified" subtitle="Users without KYC" /> },
   { path: "/admin/users/kyc-pending",         element: <EmptyState title="KYC Pending" subtitle="Awaiting review" /> },
-  { path: "/admin/users/with-balance",        element: <EmptyState title="With Balance" subtitle="Users holding wallet balance" /> },
-  { path: "/admin/kyc",                       element: <EmptyState title="KYC Verifications" subtitle="Approve or reject KYC" /> },
+  { path: "/admin/users/with-balance",        element: <UsersWithBalance /> },
+  { path: "/admin/kyc",                       element: <KycList /> },
   { path: "/admin/add-group",                 element: <EmptyState title="Client Groups" subtitle="Manage client groups" /> },
   { path: "/admin/activity-logs",             element: <EmptyState title="Activity / Login Logs" subtitle="Audit trail & logins" /> },
 
@@ -69,24 +90,24 @@ export default [
 
   /* --------------------------- MT5 MANAGEMENT ------------------------- */
   { path: "/admin/mt5",            element: <EmptyState title="MT5 Management" subtitle="Manager tools" /> },
-  { path: "/admin/mt5/users",      element: <EmptyState title="MT5 Users List" subtitle="All platform users" /> },
-  { path: "/admin/mt5/assign",     element: <EmptyState title="Assign MT5 to Email" subtitle="Link accounts to users" /> },
+  { path: "/admin/mt5/users",      element: <MT5Users /> },
+  { path: "/admin/mt5/assign",     element: <MT5Assign /> },
   { path: "/admin/mt5/transfer",   element: <EmptyState title="Internal Transfer" subtitle="Move funds internally" /> },
 
   /* --------------------------- FINANCE & OPS -------------------------- */
   // Deposits
   { path: "/admin/deposits",              element: <EmptyState title="Manage Deposits" subtitle="Overview" /> },
-  { path: "/admin/deposits/pending",      element: <EmptyState title="Pending Deposits" subtitle="Awaiting approval" /> },
-  { path: "/admin/deposits/approved",     element: <EmptyState title="Approved Deposits" subtitle="Completed inflows" /> },
-  { path: "/admin/deposits/rejected",     element: <EmptyState title="Rejected Deposits" subtitle="Declined inflows" /> },
-  { path: "/admin/deposits/all",          element: <EmptyState title="All Deposits" subtitle="Full deposit history" /> },
+  { path: "/admin/deposits/pending",      element: <DepositsPending /> },
+  { path: "/admin/deposits/approved",     element: <DepositsApproved /> },
+  { path: "/admin/deposits/rejected",     element: <DepositsRejected /> },
+  { path: "/admin/deposits/all",          element: <DepositsAll /> },
 
   // Withdrawals
   { path: "/admin/withdrawals",           element: <EmptyState title="Manage Withdrawals" subtitle="Overview" /> },
-  { path: "/admin/withdrawals/pending",   element: <EmptyState title="Pending Withdrawals" subtitle="Awaiting approval" /> },
-  { path: "/admin/withdrawals/approved",  element: <EmptyState title="Approved Withdrawals" subtitle="Completed outflows" /> },
-  { path: "/admin/withdrawals/rejected",  element: <EmptyState title="Rejected Withdrawals" subtitle="Declined outflows" /> },
-  { path: "/admin/withdrawals/all",       element: <EmptyState title="All Withdrawals" subtitle="Full withdrawal history" /> },
+  { path: "/admin/withdrawals/pending",   element: <WithdrawalsPending /> },
+  { path: "/admin/withdrawals/approved",  element: <WithdrawalsApproved /> },
+  { path: "/admin/withdrawals/rejected",  element: <WithdrawalsRejected /> },
+  { path: "/admin/withdrawals/all",       element: <WithdrawalsAll /> },
 
   // Payment Gateways
   { path: "/admin/payment-gateways",              element: <EmptyState title="Payment Gateways" subtitle="Automatic & manual gateways" /> },
@@ -95,9 +116,10 @@ export default [
   { path: "/admin/usdt-gateways/manual",       element: <EmptyState title="USDT Gateway" subtitle="USDT Gateway Integration" /> },
 
   { path: "/admin/wallet-qr",          element: <EmptyState title="Wallet QR Upload" subtitle="Upload deposit QR codes" /> },
-  { path: "/admin/bulk-logs",          element: <EmptyState title="Bulk Operations Log" subtitle="Imports & jobs" /> },
+  { path: "/admin/bulk-logs",          element: <BulkLogs /> },
+  { path: "/admin/send-emails",        element: <SendEmails /> },
 
-  /* ----------------------- FUNDS & INVESTMENTS ------------------------ */
+   /* ----------------------- FUNDS & INVESTMENTS ------------------------ */
   { path: "/admin/fund-investments",    element: <EmptyState title="Fund Investments" subtitle="Incoming funds overview" /> },
   { path: "/admin/manage-investments",  element: <EmptyState title="Manage Investments" subtitle="Allocate / redeem" /> },
   { path: "/admin/fund-wallets",        element: <EmptyState title="Fund Wallets" subtitle="Corporate wallets" /> },

@@ -25,11 +25,7 @@ export default function Topbar({
   const searchRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Custom gradient style to match sidebar
-  const customGradientStyle = {
-    background: "linear-gradient(135deg, #000000 0%, #001a1a 25%, #000000 50%, #001a1a 75%, #000000 100%)"
-  };
+  // Light theme: use plain white background (no gradient)
 
   // Get menu items based on role
   const getMenuItems = () => {
@@ -122,16 +118,16 @@ export default function Topbar({
 
   return (
     <>
-      {/* Fixed bar positioned with Tailwind only (respects 320px sidebar on lg+) */}
-        <header className="pointer-events-none fixed z-40 top-2 left-2 right-2 lg:left-[336px] lg:right-6">
-        <div 
-          style={customGradientStyle}
-          className="pointer-events-auto mx-auto max-w-[1400px] lg:mr-6 lg:ml-8 rounded-2xl border border-white/20 text-slate-100 shadow-[0_10px_28px_rgba(2,6,23,0.25)] backdrop-blur-md">
+      {/* Fixed bar aligned to content width with full responsiveness */}
+        <header className="pointer-events-none fixed z-40 top-2 left-0 right-0 lg:left-[320px]">
+        <div
+          style={{ marginInline: 'var(--app-x)' }}
+          className="pointer-events-auto w-[calc(100%-var(--app-x)*2)] rounded-2xl bg-white border border-gray-200 text-gray-800 shadow-md">
           <div className="h-14 px-2 sm:px-4 md:px-6 flex items-center gap-3">
             {/* Mobile hamburger */}
             <button
               onClick={onMenuToggle}
-              className="lg:hidden inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30"
+              className="lg:hidden inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" />
@@ -139,28 +135,30 @@ export default function Topbar({
 
             {/* Title / Breadcrumbs */}
             <div className="flex-1 min-w-0">
-              <div className="hidden md:flex items-center gap-2 text-sm">
+              <div className="hidden md:flex items-center gap-2 text-xs">
                 {breadcrumbs.length ? (
                   breadcrumbs.map((bc, i) => (
                     <span key={i} className="flex items-center gap-2">
                       {i > 0 && <span className="opacity-40">/</span>}
                       {bc.to ? (
-                        <a href={bc.to} className="hover:underline text-slate-200">
-                          {bc.label}
+                        <a href={bc.to} className="hover:underline text-gray-600 inline-flex items-center gap-1.5">
+                          {bc.icon ? <bc.icon className="h-3.5 w-3.5" /> : null}
+                          <span>{bc.label}</span>
                         </a>
                       ) : (
                         <span
-                          className={`text-slate-100 ${
+                          className={`inline-flex items-center gap-1.5 text-gray-900 ${
                             i === breadcrumbs.length - 1 ? "font-semibold" : ""
                           }`}
                         >
-                          {bc.label}
+                          {bc.icon ? <bc.icon className="h-3.5 w-3.5" /> : null}
+                          <span>{bc.label}</span>
                         </span>
                       )}
                     </span>
                   ))
                 ) : (
-                  <span className="font-semibold text-slate-100">{getCurrentPageName()}</span>
+                  <span className="font-semibold text-gray-900">{getCurrentPageName()}</span>
                 )}
               </div>
               <div className="md:hidden font-semibold truncate">{getCurrentPageName()}</div>
@@ -168,7 +166,7 @@ export default function Topbar({
 
             {/* Search (md+) */}
             <div className="hidden md:flex relative" ref={searchRef}>
-              <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 border border-white/15 min-w-[260px] max-w-md w-full">
+              <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 border border-gray-200 min-w-[260px] max-w-md w-full">
                 <Search className="h-4 w-4 opacity-80" />
                 <input
                   type="text"
@@ -179,28 +177,28 @@ export default function Topbar({
                   }}
                   onFocus={() => setIsSearchOpen(true)}
                   placeholder="Search menus, balance, MT5 accounts..."
-                  className="w-full bg-transparent placeholder:text-slate-200/60 text-slate-50 outline-none"
+                  className="w-full bg-transparent placeholder:text-gray-500 text-gray-800 outline-none"
                 />
               </div>
 
               {/* Search Dropdown */}
               {isSearchOpen && searchResults.length > 0 && (
-                <div className="absolute top-full mt-2 w-full max-w-md bg-[#0b1130]/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-md z-50">
+                <div className="absolute top-full mt-2 w-full max-w-md bg-white border border-gray-200 rounded-2xl shadow-2xl z-50">
                   <div className="p-2">
                     {searchResults.map((item, index) => (
                       <button
                         key={index}
                         onClick={() => handleNavigate(item.to)}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 transition-colors group"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors group"
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-slate-100 font-medium text-sm">{item.label}</div>
-                            <div className="text-slate-400 text-xs">
+                            <div className="text-gray-900 font-medium text-sm">{item.label}</div>
+                            <div className="text-gray-500 text-xs">
                               {item.parent ? `${item.section} > ${item.parent}` : item.section}
                             </div>
                           </div>
-                          <div className="text-slate-400 group-hover:text-slate-200 transition-colors">
+                          <div className="text-gray-500 group-hover:text-gray-700 transition-colors">
                             <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
                           </div>
                         </div>
@@ -212,8 +210,8 @@ export default function Topbar({
 
               {/* No Results */}
               {isSearchOpen && searchQuery && searchResults.length === 0 && (
-                <div className="absolute top-full mt-2 w-full max-w-md bg-[#0b1130]/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-md z-50">
-                  <div className="p-4 text-center text-slate-400 text-sm">
+                <div className="absolute top-full mt-2 w-full max-w-md bg-white border border-gray-200 rounded-2xl shadow-2xl z-50">
+                  <div className="p-4 text-center text-gray-500 text-sm">
                     No results found for "{searchQuery}"
                   </div>
                 </div>
@@ -221,20 +219,20 @@ export default function Topbar({
             </div>
 
             {/* Balance Display */}
-            <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+            {/* <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-xl bg-gray-100 border border-gray-200">
               <div className="text-right">
-                <div className="text-[10px] sm:text-xs text-slate-400 font-medium">Balance</div>
-                <div className="text-xs sm:text-sm font-semibold text-emerald-300">$25,040.22</div>
+                <div className="text-[10px] sm:text-xs text-gray-500 font-medium">Balance</div>
+                <div className="text-xs sm:text-sm font-semibold text-emerald-600">$25,040.22</div>
               </div>
-              <div className="w-px h-6 sm:h-8 bg-white/20"></div>
+              <div className="w-px h-6 sm:h-8 bg-gray-300"></div>
               <div className="text-right">
-                <div className="text-[10px] sm:text-xs text-slate-400 font-medium">Equity</div>
-                <div className="text-xs sm:text-sm font-semibold text-blue-300">$24,890.15</div>
+                <div className="text-[10px] sm:text-xs text-gray-500 font-medium">Equity</div>
+                <div className="text-xs sm:text-sm font-semibold text-blue-600">$24,890.15</div>
               </div>
-            </div>
+            </div> */}
 
             {/* Role chip */}
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-400/15 border border-emerald-300/30 text-emerald-200">
+            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
               <Shield className="h-3.5 w-3.5" />
               {role === "superadmin" ? "SUPER ADMIN" : role.toUpperCase()}
             </span>
@@ -242,7 +240,7 @@ export default function Topbar({
             {/* Notifications */}
             <button
               aria-label="Notifications"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300"
             >
               <Bell className="h-5 w-5" />
             </button>
@@ -252,24 +250,24 @@ export default function Topbar({
               <button
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
-                className="flex items-center gap-2 rounded-xl hover:bg-white/10 px-1.5 py-1.5 border border-white/15"
+                className="flex items-center gap-2 rounded-xl hover:bg-gray-100 px-1.5 py-1.5 border border-gray-200"
               >
-                <svg className="h-8 w-8 text-slate-300" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="h-8 w-8 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                 </svg>
                 <ChevronDown className="h-4 w-4 opacity-80" />
               </button>
 
               {open && (
-                <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-white/10 bg-[#0b1130]/95 text-slate-100 shadow-2xl">
-                  <div className="px-3 py-2 text-xs text-slate-400">
-                    Signed in as <span className="text-slate-200">you@example.com</span>
+                <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white text-gray-800 shadow-2xl">
+                  <div className="px-3 py-2 text-xs text-gray-500">
+                    Signed in as <span className="text-gray-700">you@example.com</span>
                   </div>
-                  <div className="divide-y divide-white/10">
-                    <a href={profileHref} className="flex items-center gap-2 px-3 py-2 hover:bg-white/5">
+                  <div className="divide-y divide-gray-100">
+                    <a href={profileHref} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100">
                       <User className="h-4 w-4 opacity-80" /> Profile
                     </a>
-                    <a href={logoutHref} className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-rose-300">
+                    <a href={logoutHref} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 text-rose-600">
                       <LogOut className="h-4 w-4 opacity-80" /> Logout
                     </a>
                   </div>

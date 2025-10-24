@@ -6,6 +6,14 @@ html {
   background-color: #f3f4f6; /* gray-100 */
 }
 
+/* Unified horizontal padding across Topbar and pages */
+:root { --app-x: 0.75rem; }
+@media (min-width: 640px) { :root { --app-x: 1rem; } }
+@media (min-width: 768px) { :root { --app-x: 1.5rem; } }
+@media (min-width: 1024px) { :root { --app-x: 2rem; } }
+@media (min-width: 1280px) { :root { --app-x: 2.5rem; } }
+@media (min-width: 1536px) { :root { --app-x: 3rem; } }
+
 /* Global 90% zoom for complete screen */
 body {
   zoom: 0.9;
@@ -40,19 +48,19 @@ body {
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(100, 116, 139, 0.4); /* slate-500/40 for light theme */
   border-radius: 2px;
   transition: all 0.3s ease;
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(100, 116, 139, 0.6);
 }
 
 /* Firefox scrollbar */
 .sidebar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
 }
 
 /* Hide scrollbar utility */

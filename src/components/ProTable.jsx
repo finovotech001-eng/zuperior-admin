@@ -14,7 +14,7 @@ import Badge from "./Badge.jsx";
  *  dateKey: "executedAt" (Date ISO)
  * }
  */
-export default function ProTable({ title, kpis=[], rows, columns, filters, pageSize=10 }) {
+export default function ProTable({ title, kpis=[], rows, columns, filters, pageSize=10, searchPlaceholder="Search..." }) {
   const [q, setQ] = useState("");
   const [selects, setSelects] = useState(
     Object.fromEntries((filters?.selects||[]).map(s=>[s.key,""]))
@@ -73,8 +73,15 @@ export default function ProTable({ title, kpis=[], rows, columns, filters, pageS
   const pages = Math.max(1, Math.ceil(total/pageSize));
   const slice = filtered.slice((page-1)*pageSize, (page-1)*pageSize+pageSize);
 
+  const baseIndex = (page-1)*pageSize;
+
   return (
     <div className="space-y-4">
+      {title && (
+        <div className="px-1">
+          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        </div>
+      )}
       {/* KPI cards */}
       {!!kpis.length && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -84,19 +91,19 @@ export default function ProTable({ title, kpis=[], rows, columns, filters, pageS
 
       {/* Filters */}
       <div className="rounded-2xl bg-white p-3 md:p-4 shadow-sm border border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           <input
             value={q}
             onChange={e=>{setQ(e.target.value); setPage(1);}}
-            placeholder="Search symbol / source / status / side…"
-            className="md:col-span-3 rounded-lg border-gray-300 bg-white px-3 py-2 outline-none"
+            placeholder={searchPlaceholder}
+            className="md:col-span-4 rounded-lg border-gray-300 bg-white px-3 h-[40px] outline-none"
           />
 
           {(filters?.selects||[]).map((s,i)=>(
             <select key={i}
               value={selects[s.key]}
               onChange={e=>{ setSelects(v=>({...v,[s.key]:e.target.value})); setPage(1); }}
-              className="md:col-span-2 rounded-lg border-gray-300 bg-white px-3 py-2">
+              className="md:col-span-2 rounded-lg border-gray-300 bg-white px-3 h-[40px]">
               <option value="">{s.label}</option>
               {s.options.map(opt=> <option key={opt} value={opt}>{opt}</option>)}
             </select>
@@ -104,15 +111,15 @@ export default function ProTable({ title, kpis=[], rows, columns, filters, pageS
 
           {/* dates */}
           <input type="date" value={from} onChange={e=>{setFrom(e.target.value); setPage(1);}}
-                 className="md:col-span-1 rounded-lg border-gray-300 bg-white px-3 py-2" />
+                 className="md:col-span-1 rounded-lg border-gray-300 bg-white px-3 h-[40px]" />
           <input type="date" value={to}   onChange={e=>{setTo(e.target.value); setPage(1);}}
-                 className="md:col-span-1 rounded-lg border-gray-300 bg-white px-3 py-2" />
+                 className="md:col-span-1 rounded-lg border-gray-300 bg-white px-3 h-[40px]" />
 
-          <div className="md:col-span-3 flex gap-2">
+          <div className="md:col-span-4 flex gap-2 justify-end">
             <button onClick={clearDates}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2">Clear Dates</button>
+              className="rounded-lg border border-gray-300 bg-white px-4 h-[40px]">Clear Dates</button>
             <button onClick={resetAll}
-              className="rounded-lg bg-gray-900 text-white px-4 py-2 shadow">Reset All</button>
+              className="rounded-lg bg-violet-600 hover:bg-violet-700 text-white px-4 h-[40px] shadow">Reset All</button>
           </div>
         </div>
       </div>
@@ -126,11 +133,12 @@ export default function ProTable({ title, kpis=[], rows, columns, filters, pageS
                 {columns.map(col=>(
                   <th key={col.key}
                       onClick={()=>{
+                        if (col.key==='__index' || col.sortable===false) return;
                         setSortBy(s=> s?.key===col.key
                           ? {key:col.key, dir: s.dir==="asc"?"desc":"asc"}
                           : {key:col.key, dir:"asc"});
                       }}
-                      className="px-4 py-3 font-semibold text-gray-700 cursor-pointer select-none whitespace-nowrap">
+                      className={`px-4 py-3 font-semibold text-gray-700 select-none whitespace-nowrap ${col.key==='__index' || col.sortable===false ? '' : 'cursor-pointer'}`}>
                     {col.label}{sortBy?.key===col.key ? (sortBy.dir==="asc"?" ▲":" ▼") : ""}
                   </th>
                 ))}
@@ -139,11 +147,16 @@ export default function ProTable({ title, kpis=[], rows, columns, filters, pageS
             <tbody className="divide-y divide-gray-100">
               {slice.map((r,i)=>(
                 <tr key={i} className="hover:bg-gray-50">
-                  {columns.map(c=>(
-                    <td key={c.key} className="px-4 py-3 whitespace-nowrap">
-                      {c.render ? c.render(r[c.key], r, Badge) : r[c.key]}
-                    </td>
-                  ))}
+                  {columns.map(c=>{
+                    const content = c.key==='__index'
+                      ? (baseIndex + i + 1)
+                      : (c.render ? c.render(r[c.key], r, Badge, baseIndex + i) : r[c.key]);
+                    return (
+                      <td key={c.key} className="px-4 py-3 whitespace-nowrap">
+                        {content}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
               {!slice.length && (

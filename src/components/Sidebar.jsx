@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU } from "./SidebarMenuConfig.js";
-import { ChevronDown, Moon, Sun } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 /* ---------- Section ---------- */
 function Section({ title, items, pathname, openMap, onToggle, onNavigate, isDark }) {
@@ -97,49 +97,14 @@ function Section({ title, items, pathname, openMap, onToggle, onNavigate, isDark
 }
 
 /* ---------- Header ---------- */
-function Header({ role, isDark, onToggleTheme }) {
-  if (role === "superadmin") {
-    return (
-      <div className="p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className={`text-[18px] leading-6 font-extrabold ${isDark ? 'text-white/90' : 'text-gray-800'}`}>
-              AAYAAMX TECH
-            </div>
-            <div className={`text-xs mt-1 ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
-              Manage Admin & reports
-            </div>
-          </div>
-          <button
-            onClick={onToggleTheme}
-            className={`p-2 rounded-lg transition-colors ${
-              isDark 
-                ? 'hover:bg-white/10 text-white/80 hover:text-white' 
-                : 'hover:bg-gray-200 text-gray-600 hover:text-gray-800'
-            }`}
-            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {isDark ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-        </div>
-      </div>
-    );
-  }
+function Header({ role }) {
   return (
     <div className="p-4">
-      <div className="flex items-center justify-between">
-        <img src="/logo.png" alt="zuperior Trader" className="h-12 w-60 object-contain" />
-        <button
-          onClick={onToggleTheme}
-          className={`p-2 rounded-lg transition-colors ${
-            isDark 
-              ? 'hover:bg-white/10 text-white/80 hover:text-white' 
-              : 'hover:bg-gray-200 text-gray-600 hover:text-gray-800'
-          }`}
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {isDark ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+      <div className="flex items-center gap-3">
+        <img src="/favicon-32x32.png" alt="Zuperior" className="h-8 w-8 rounded-full" />
+        <div className="text-[18px] leading-6 font-extrabold text-gray-800">
+          Zuperior Admin
+        </div>
       </div>
     </div>
   );
@@ -156,9 +121,8 @@ export default function Sidebar({
   const MENU =
     role === "superadmin" ? SUPERADMIN_MENU : role === "admin" ? ADMIN_MENU : USER_MENU;
 
-  // Dark mode state management
-  const [isDark, setIsDark] = useState(true);
-  const toggleTheme = () => setIsDark(!isDark);
+  // Force light mode
+  const isDark = false;
 
   // auto-open section for current path
   const initialOpen = useMemo(() => {
@@ -181,17 +145,12 @@ export default function Sidebar({
     if (typeof window !== "undefined" && window.innerWidth < 1024) onClose();
   };
 
-  // Theme-based styles
-  const darkGradientStyle = {
-    background: "linear-gradient(135deg, #000000 0%, #001a1a 25%, #000000 50%, #001a1a 75%, #000000 100%)"
-  };
-  
   const lightStyle = {
     background: "#f3f4f6" // gray-100
   };
   
-  const backgroundStyle = isDark ? darkGradientStyle : lightStyle;
-  const textTheme = isDark ? "text-white" : "text-gray-900";
+  const backgroundStyle = lightStyle;
+  const textTheme = "text-gray-900";
 
   return (
     <>
@@ -210,7 +169,7 @@ export default function Sidebar({
           className={`fixed left-0 top-0 bottom-0 transform transition-transform overflow-y-auto overflow-x-hidden
                       sidebar ${textTheme} shadow-xl ${open ? "translate-x-0" : "-translate-x-full"}`}
         >
-          <Header role={role} isDark={isDark} onToggleTheme={toggleTheme} />
+          <Header role={role} />
           <nav className="pb-8">
             {MENU.map((section) => (
               <Section
@@ -234,7 +193,7 @@ export default function Sidebar({
         className={`hidden lg:block fixed left-0 top-0 bottom-0 w-[320px] shrink-0 overflow-y-auto overflow-x-hidden
                     sidebar ${textTheme} shadow-xl ${className}`}
       >
-        <Header role={role} isDark={isDark} onToggleTheme={toggleTheme} />
+        <Header role={role} />
         <nav className="pb-8">
           {MENU.map((section) => (
             <Section
