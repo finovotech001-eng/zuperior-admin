@@ -6,6 +6,19 @@ import {
   DollarSign, Activity, AlertTriangle, CheckCircle, XCircle,
   Eye, Zap, Target, Award, Bell, RefreshCw
 } from "lucide-react";
+import ProTable from "../../components/ProTable.jsx";
+import Badge from "../../components/Badge.jsx";
+
+function fmtDate(v) {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString();
+}
+
+function fmtAmount(v) {
+  return v ? `$${Number(v || 0).toFixed(2)}` : "-";
+}
 
 const getKpiCards = (data) => [
   { id: "totalUsers",      label: "Total Users",            value: data.users.total.toLocaleString(),    icon: Users,       tone: "from-cyan-400/20 to-teal-400/20", ring:"ring-cyan-400/30" },
@@ -154,7 +167,7 @@ function TopTraders({ traders }) {
               </tr>
             </thead>
             <tbody>
-              {traders.length > 0 ? traders.map(trader => (
+              {(traders && traders.length > 0) ? traders.map(trader => (
                 <tr key={trader.rank} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="py-3 text-sm font-bold text-indigo-600">#{trader.rank}</td>
                   <td className="py-3">
@@ -189,7 +202,7 @@ function RecentTransactions({ transactions }) {
       </div>
       <div className="px-5 pb-4">
         <div className="space-y-3">
-          {transactions.length > 0 ? transactions.map(tx => (
+          {(transactions && transactions.length > 0) ? transactions.map(tx => (
             <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
               <div className="flex items-center gap-3">
                 <div className={`h-8 w-8 rounded-full grid place-items-center flex-shrink-0 ${
@@ -228,7 +241,7 @@ function RecentKyc({ kycData }) {
         Recent KYC Submissions
       </div>
       <div className="px-5 pb-4">
-        {kycData.length > 0 ? (
+        {(kycData && kycData.length > 0) ? (
           <div className="space-y-3">
             {kycData.map(kyc => (
               <div key={kyc.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
@@ -277,7 +290,7 @@ function Alerts({ alerts }) {
       </div>
       <div className="px-5 pb-4">
         <div className="space-y-3">
-          {alerts.length > 0 ? alerts.map(alert => (
+          {(alerts && alerts.length > 0) ? alerts.map(alert => (
             <div key={alert.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
               <div className={`h-8 w-8 rounded-full grid place-items-center flex-shrink-0 ${
                 alert.type === 'error' ? 'bg-red-100 text-red-600' :
@@ -312,7 +325,7 @@ function MT5Stats({ stats }) {
       </div>
       <div className="px-5 pb-4">
         <div className="grid gap-3 grid-cols-1">
-          {stats.length > 0 ? stats.map(stat => {
+          {(stats && stats.length > 0) ? stats.map(stat => {
             const Icon = stat.icon;
             return (
               <div key={stat.label} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
@@ -462,10 +475,87 @@ export default function AdminDashboard() {
   const [chartFilter, setChartFilter] = useState('monthly');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [rows, setRows] = useState([]);
+  const [recentDeposits, setRecentDeposits] = useState([]);
+  const [recentWithdrawals, setRecentWithdrawals] = useState([]);
+  const [recentAccounts, setRecentAccounts] = useState([]);
+  const [filters, setFilters] = useState({
+    type: "all",
+    status: "all",
+    from: "",
+    to: "",
+    search: "",
+  });
+
+  const BASE = import.meta.env.VITE_BACKEND_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:5003";
+
+  const columns = useMemo(() => [
+    { key: "__index", label: "Sr No", sortable: false },
+    { key: "time", label: "Time", render: (v) => fmtDate(v) },
+    { key: "type", label: "Type" },
+    { key: "user", label: "User" },
+    { key: "mts", label: "MTS" },
+    { key: "amount", label: "Amount", render: (v) => fmtAmount(v) },
+    { key: "status", label: "Status", render: (v, row, Badge) => {
+      let tone = 'gray';
+      if (v === 'Approved' || v === 'Opened') tone = 'green';
+      else if (v === 'Rejected') tone = 'red';
+      else if (v === 'Pending') tone = 'amber';
+      return <Badge tone={tone}>{v}</Badge>;
+    } },
+    { key: "details", label: "Details" },
+  ], []);
+
+  const tableFilters = useMemo(() => ({
+    searchKeys: ["user", "userName", "mts", "details", "status"],
+  }), []);
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    let stop = false;
+    setLoading(true);
+    setError("");
+
+    const params = new URLSearchParams({
+      limit: '500',
+      ...(filters.type !== 'all' ? { type: filters.type } : {}),
+      ...(filters.status !== 'all' ? { status: filters.status } : {}),
+      ...(filters.from ? { from: filters.from } : {}),
+      ...(filters.to ? { to: filters.to } : {}),
+      ...(filters.search ? { search: filters.search } : {}),
+    });
+
+    fetch(`${BASE}/admin/activity-logs?${params.toString()}`)
+      .then(r => r.json())
+      .then(data => {
+        if (stop) return;
+        if (!data?.ok) throw new Error(data?.error || "Failed to load");
+        const items = Array.isArray(data.items) ? data.items : [];
+        setRows(items.map((item, index) => ({
+          ...item,
+          __index: index + 1,
+        })));
+
+        // Extract recent activities for cards
+        const deposits = items.filter(i => i.type === 'Deposit').slice(0, 5);
+        const withdrawals = items.filter(i => i.type === 'Withdrawal').slice(0, 5);
+        const accounts = items.filter(i => i.type === 'Account').slice(0, 5);
+
+        setRecentDeposits(deposits);
+        setRecentWithdrawals(withdrawals);
+        setRecentAccounts(accounts);
+      })
+      .catch(e => setError(e.message || String(e)))
+      .finally(() => !stop && setLoading(false));
+    return () => { stop = true; };
+  }, [BASE, filters]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -481,8 +571,8 @@ export default function AdminDashboard() {
         activityRes
       ] = await Promise.all([
         fetch('/api/admin/users/all?limit=1').then(r => r.json()).catch(() => ({ ok: false })),
-        fetch('/api/admin/deposits?limit=1').then(r => r.json()).catch(() => ({ ok: false })),
-        fetch('/api/admin/withdrawals?limit=1').then(r => r.json()).catch(() => ({ ok: false })),
+        fetch('/api/admin/deposits').then(r => r.json()).catch(() => ({ ok: false })),
+        fetch('/api/admin/withdrawals').then(r => r.json()).catch(() => ({ ok: false })),
         fetch('/api/admin/kyc?limit=1').then(r => r.json()).catch(() => ({ ok: false })),
         fetch('/api/admin/mt5/users?limit=1').then(r => r.json()).catch(() => ({ ok: false })),
         fetch('/api/admin/activity-logs?limit=10').then(r => r.json()).catch(() => ({ ok: false }))
@@ -528,15 +618,15 @@ export default function AdminDashboard() {
         .slice(-12); // Last 12 months
 
       // Process deposits data
-      const deposits = depositsRes.ok ? depositsRes : { total: 0, items: [] };
-      const totalDeposits = deposits.total || 0;
+      const deposits = depositsRes.ok ? depositsRes : { total: 0, totalSum: 0, items: [] };
+      const totalDeposits = deposits.totalSum || 0;
       const pendingDeposits = deposits.items.filter(d => d.status === 'pending').length;
       const approvedDeposits = deposits.items.filter(d => d.status === 'approved').length;
       const rejectedDeposits = deposits.items.filter(d => d.status === 'rejected').length;
 
       // Process withdrawals data
       const withdrawals = withdrawalsRes.ok ? withdrawalsRes : { total: 0, items: [] };
-      const totalWithdrawals = withdrawals.total || 0;
+      const totalWithdrawals = withdrawals.items.reduce((sum, w) => sum + (w.amount || 0), 0);
       const pendingWithdrawals = withdrawals.items.filter(w => w.status === 'pending').length;
       const approvedWithdrawals = withdrawals.items.filter(w => w.status === 'approved').length;
       const rejectedWithdrawals = withdrawals.items.filter(w => w.status === 'rejected').length;
@@ -685,111 +775,260 @@ export default function AdminDashboard() {
 
   const kpiCards = getKpiCards(dashboardData);
 
+  if (loading) return <div className="rounded-xl bg-white border border-gray-200 p-4">Loading logs…</div>;
+  if (error) return <div className="rounded-xl bg-white border border-rose-200 text-rose-700 p-4">{error}</div>;
+
   return (
-    <div className="space-y-3 text-black">
-      {loading ? (
-        <div className="text-center py-8">
-          <div className="text-lg">Loading dashboard data...</div>
+    <div className="space-y-6">
+      {/* Page Title */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 mt-1">Monitor all CRM activities and operations</p>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {kpiCards.map(card => (
+          <KpiCard key={card.id} item={card} onClick={() => setSelected(card)} />
+        ))}
+      </div>
+
+      {/* Top Depositors + Recent KYC */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <TopTraders traders={dashboardData.topDepositors} />
         </div>
-      ) : error ? (
-        <div className="text-center py-8 text-red-600">
-          <div className="text-lg">{error}</div>
-          <div className="text-sm mt-2">Please check your database connection.</div>
+        <div>
+          <RecentKyc kycData={dashboardData.recentKyc} />
         </div>
-      ) : (
-        <>
-          {/* KPIs */}
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {kpiCards.map(card => (
-              <KpiCard key={card.id} item={card} onClick={() => setSelected(card)} />
-            ))}
-          </div>
+      </div>
 
-          {/* Top Depositors + Recent KYC */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <TopTraders traders={dashboardData.topDepositors} />
-            </div>
-            <div>
-              <RecentKyc kycData={dashboardData.recentKyc} />
-            </div>
-          </div>
+      {/* Transactions + MT5 Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <RecentTransactions transactions={dashboardData.recentTransactions} />
+        </div>
+        <div>
+          <MT5Stats stats={dashboardData.mt5Stats} />
+        </div>
+      </div>
 
-          {/* Transactions + MT5 Stats */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <RecentTransactions transactions={dashboardData.recentTransactions} />
-            </div>
-            <div>
-              <MT5Stats stats={dashboardData.mt5Stats} />
-            </div>
-          </div>
+      {/* Full Width User Registration Chart */}
+      <div className="w-full">
+        <UserRegistrationChart
+          data={dashboardData.userRegistrations}
+          filter={chartFilter}
+          onFilterChange={setChartFilter}
+        />
+      </div>
 
-          {/* Full Width User Registration Chart */}
-          <div className="w-full">
-            <UserRegistrationChart
-              data={dashboardData.userRegistrations}
-              filter={chartFilter}
-              onFilterChange={setChartFilter}
-            />
+      {/* Recent Activity + Alerts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Recent Activity */}
+        <div className="rounded-2xl bg-white shadow-lg border border-slate-200">
+          <div className="px-5 pt-4 pb-3 text-lg font-semibold text-black">Recent Activity</div>
+          <div className="px-5 pb-4">
+            <ul className="divide-y divide-slate-200">
+              {(dashboardData.recentActivity && dashboardData.recentActivity.length > 0) ? dashboardData.recentActivity.map(r => {
+                const I = r.icon;
+                return (
+                  <li key={r.id} className="py-3 flex items-start gap-3">
+                    <span className={`h-8 w-8 rounded-full grid place-items-center bg-black/5 ${r.tone} flex-shrink-0`}>
+                      <I className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-black">{r.what}</div>
+                      <div className="text-xs text-black/60 truncate">{r.who}</div>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-black/60 flex-shrink-0">
+                      <Clock className="h-3 w-3" /> {r.when}
+                    </div>
+                  </li>
+                );
+              }) : (
+                <li className="py-6 text-sm text-black/60 text-center">No recent activity</li>
+              )}
+            </ul>
           </div>
+        </div>
 
-          {/* Recent Activity + Alerts */}
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Recent Activity */}
-            <div className="rounded-2xl bg-white shadow-lg border border-slate-200">
-              <div className="px-5 pt-4 pb-3 text-lg font-semibold text-black">Recent Activity</div>
-              <div className="px-5 pb-4">
-                <ul className="divide-y divide-slate-200">
-                  {dashboardData.recentActivity.length > 0 ? dashboardData.recentActivity.map(r => {
-                    const I = r.icon;
-                    return (
-                      <li key={r.id} className="py-3 flex items-start gap-3">
-                        <span className={`h-8 w-8 rounded-full grid place-items-center bg-black/5 ${r.tone} flex-shrink-0`}>
-                          <I className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-black">{r.what}</div>
-                          <div className="text-xs text-black/60 truncate">{r.who}</div>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-black/60 flex-shrink-0">
-                          <Clock className="h-3 w-3" /> {r.when}
-                        </div>
-                      </li>
-                    );
-                  }) : (
-                    <li className="py-6 text-sm text-black/60 text-center">No recent activity</li>
-                  )}
-                </ul>
+        {/* Alerts */}
+        <div>
+          <Alerts alerts={dashboardData.alerts} />
+        </div>
+      </div>
+
+      {/* Operation Logs Section */}
+      <div className="mt-8">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">All Operation Logs</h2>
+      </div>
+
+      {/* Cards for Recent Activities */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        {/* Recent Deposits */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center mb-4">
+            <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+            <h3 className="text-lg font-semibold text-gray-900">Recent Deposits</h3>
+          </div>
+          <div className="space-y-4">
+            {recentDeposits.length > 0 ? recentDeposits.map((item, index) => (
+              <div key={index} className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-900">{item.user}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString()} • MTS: {item.mts}
+                    </div>
+                    {item.details && item.details !== '-' && (
+                      <div className="text-xs text-gray-400 mt-1">Txn: {item.details}</div>
+                    )}
+                  </div>
+                  <div className="text-right ml-4">
+                    <div className="text-sm font-semibold text-gray-900">{fmtAmount(item.amount)}</div>
+                    <Badge tone={item.status === 'Approved' ? 'green' : item.status === 'Pending' ? 'amber' : 'red'}>
+                      {item.status.toLowerCase()}
+                    </Badge>
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* Alerts */}
-            <div>
-              <Alerts alerts={dashboardData.alerts} />
-            </div>
+            )) : (
+              <div className="text-sm text-gray-500">No recent deposits</div>
+            )}
           </div>
-        </>
-      )}
-
-      {/* Modal */}
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.label || "Details"}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl bg-black/5 p-4 ring-1 ring-black/10">
-            <div className="text-xs text-black/60">Current Value</div>
-            <div className="text-2xl font-bold mt-1">{selected?.value}</div>
-          </div>
-          <div className="rounded-xl bg-black/5 p-4 ring-1 ring-black/10">
-            <div className="text-xs text-black/60">Trend (sample)</div>
-            <div className="mt-1 flex items-center gap-2 text-emerald-700">
-              <TrendingUp className="h-4 w-4" /> +4.2% this week
-            </div>
+          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+            <span className="text-xs text-gray-500">Showing last 5 results</span>
+            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">View all</button>
           </div>
         </div>
-        <div className="mt-4 text-sm text-black/70">
-          Drill-downs, filters and export actions can go here later. Click **Close** to return.
+
+        {/* Recent Withdrawals */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center mb-4">
+            <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+            <h3 className="text-lg font-semibold text-gray-900">Recent Withdrawals</h3>
+          </div>
+          <div className="space-y-4">
+            {recentWithdrawals.length > 0 ? recentWithdrawals.map((item, index) => (
+              <div key={index} className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-900">{item.user}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString()} • MTS: {item.mts}
+                    </div>
+                    {item.details && item.details !== '-' && (
+                      <div className="text-xs text-gray-400 mt-1">Txn: {item.details}</div>
+                    )}
+                  </div>
+                  <div className="text-right ml-4">
+                    <div className="text-sm font-semibold text-gray-900">{fmtAmount(item.amount)}</div>
+                    <Badge tone={item.status === 'Approved' ? 'green' : item.status === 'Pending' ? 'amber' : 'red'}>
+                      {item.status.toLowerCase()}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <div className="text-sm text-gray-500">No recent withdrawals</div>
+            )}
+          </div>
+          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+            <span className="text-xs text-gray-500">Showing last 5 results</span>
+            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">View all</button>
+          </div>
         </div>
-      </Modal>
+
+        {/* Recent Accounts Opened */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center mb-4">
+            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+            <h3 className="text-lg font-semibold text-gray-900">Recent Accounts Opened</h3>
+          </div>
+          <div className="space-y-4">
+            {recentAccounts.length > 0 ? recentAccounts.map((item, index) => (
+              <div key={index} className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-900">{item.user}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString()}
+                    </div>
+                    <div className="text-xs text-gray-500">MTS: {item.mts}</div>
+                  </div>
+                  <div className="text-right ml-4">
+                    <Badge tone="green">Opened</Badge>
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <div className="text-sm text-gray-500">No recent accounts</div>
+            )}
+          </div>
+          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+            <span className="text-xs text-gray-500">Showing last 5 results</span>
+            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">View all</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-xl border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <select
+            value={filters.type}
+            onChange={(e) => handleFilterChange({ type: e.target.value })}
+            className="rounded-md border border-gray-300 h-10 px-3"
+          >
+            <option value="all">All Types</option>
+            <option value="deposit">Deposit</option>
+            <option value="withdrawal">Withdrawal</option>
+            <option value="account">Account</option>
+          </select>
+          <select
+            value={filters.status}
+            onChange={(e) => handleFilterChange({ status: e.target.value })}
+            className="rounded-md border border-gray-300 h-10 px-3"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="opened">Opened</option>
+          </select>
+          <input
+            type="date"
+            value={filters.from}
+            onChange={(e) => handleFilterChange({ from: e.target.value })}
+            className="rounded-md border border-gray-300 h-10 px-3"
+            placeholder="From"
+          />
+          <input
+            type="date"
+            value={filters.to}
+            onChange={(e) => handleFilterChange({ to: e.target.value })}
+            className="rounded-md border border-gray-300 h-10 px-3"
+            placeholder="To"
+          />
+          <input
+            type="text"
+            value={filters.search}
+            onChange={(e) => handleFilterChange({ search: e.target.value })}
+            className="rounded-md border border-gray-300 h-10 px-3"
+            placeholder="Search email / MTS / txn"
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <ProTable
+        title="Activity Logs"
+        rows={rows}
+        columns={columns}
+        filters={tableFilters}
+        searchPlaceholder="Search user, MTS, details…"
+        pageSize={10}
+      />
     </div>
   );
 }

@@ -61,7 +61,7 @@ export const ADMIN_MENU = [
         ],
       },
       { icon: ShieldCheck, label: "KYC Verifications", to: "/admin/kyc" },
-      { icon: Users, label: "Manage MT5 Groups", to: "/admin/add-group" },
+      // { icon: Users, label: "Manage MT5 Groups", to: "/admin/add-group" },
       { icon: KeySquare, label: "Activity / Login Logs", to: "/admin/activity-logs" },
     ],
   },
