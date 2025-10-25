@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import ProTable from "../../components/ProTable.jsx";
 import Modal from "../../components/Modal.jsx";
 import { Eye } from "lucide-react";
-import axios from "axios";
 
 function fmtDate(v) {
   if (!v) return "-";
@@ -81,71 +80,31 @@ export default function MT5Users() {
     setAccountsLoading(true);
     setAccountsError("");
     try {
-      const accounts = await Promise.all(
-        row.MT5Account.map(async (account) => {
-          try {
-            const response = await axios.get(`${BASE}/admin/mt5/account/${account.accountId}`, {
-              timeout: 5000,
-              headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
-            });
-            if (response.data?.ok) {
-              const data = response.data.account;
-              if (!data) {
-                console.warn(`No data received for account ${account.accountId}:`, response.data);
-                throw new Error('No data received from API');
-              }
-              return {
-                accountId: data.Login || account.accountId,
-                name: data.Name || "-",
-                group: data.Group || "-",
-                balance: data.Balance || 0,
-                equity: data.Equity || 0,
-                leverage: data.Leverage || "-",
-                credit: data.Credit || 0,
-                margin: data.Margin || 0,
-                marginFree: data.MarginFree || 0,
-                marginLevel: data.MarginLevel || 0,
-                profit: data.Profit || 0,
-                comment: data.Comment || "-",
-                city: data.City || "-",
-                state: data.State || "-",
-                zipCode: data.ZipCode || "-",
-                address: data.Address || "-",
-                registration: data.Registration || "-",
-                lastAccess: data.LastAccess || "-",
-                lastIP: data.LastIP || "-",
-              };
-            } else {
-              console.warn(`API returned error for account ${account.accountId}:`, response.data);
-              throw new Error(`API error: ${response.data?.error || 'Unknown error'}`);
-            }
-          } catch (error) {
-            console.warn(`Failed to fetch details for account ${account.accountId}:`, error.message);
-            console.warn('Full error details:', error);
-            return {
-              accountId: account.accountId,
-              name: "-",
-              group: "-",
-              balance: 0,
-              equity: 0,
-              leverage: "-",
-              credit: 0,
-              margin: 0,
-              marginFree: 0,
-              marginLevel: 0,
-              profit: 0,
-              comment: "-",
-              city: "-",
-              state: "-",
-              zipCode: "-",
-              address: "-",
-              registration: "-",
-              lastAccess: "-",
-              lastIP: "-",
-            };
-          }
-        })
-      );
+      // Use the account data that's already been fetched by the backend
+      // No need for additional API calls - this eliminates the double conflict
+      const accounts = row.MT5Account.map((account) => {
+        return {
+          accountId: account.accountId,
+          name: account.name && account.name !== "-" ? account.name : "-",
+          group: account.group && account.group !== "-" ? account.group : "-",
+          balance: account.balance || 0,
+          equity: account.equity || 0,
+          leverage: account.leverage && account.leverage !== "-" ? account.leverage : "-",
+          credit: account.credit || 0,
+          margin: account.margin || 0,
+          marginFree: account.marginFree || 0,
+          marginLevel: account.marginLevel || 0,
+          profit: account.profit || 0,
+          comment: account.comment && account.comment !== "-" ? account.comment : "-",
+          city: account.city && account.city !== "-" ? account.city : "-",
+          state: account.state && account.state !== "-" ? account.state : "-",
+          zipCode: account.zipCode && account.zipCode !== "-" ? account.zipCode : "-",
+          address: account.address && account.address !== "-" ? account.address : "-",
+          registration: account.registration && account.registration !== "-" ? account.registration : "-",
+          lastAccess: account.lastAccess && account.lastAccess !== "-" ? account.lastAccess : "-",
+          lastIP: account.lastIP && account.lastIP !== "-" ? account.lastIP : "-",
+        };
+      });
       setViewModal({ user: row, accounts });
     } catch (e) {
       setAccountsError(e.message || String(e));
@@ -176,6 +135,9 @@ export default function MT5Users() {
             {accountsError && <div className="text-rose-700">{accountsError}</div>}
             {!accountsLoading && !accountsError && (
               <div className="overflow-x-auto">
+                <div className="mb-2 text-sm text-gray-600">
+                  Showing {viewModal.accounts.length} MT5 accounts for {viewModal.user.name}
+                </div>
                 <table className="w-full border-collapse border border-gray-300">
                   <thead>
                     <tr className="bg-gray-100">
@@ -200,28 +162,31 @@ export default function MT5Users() {
                     </tr>
                   </thead>
                   <tbody>
-                    {viewModal.accounts.map((account, index) => (
-                      <tr key={index}>
-                        <td className="border border-gray-300 px-4 py-2">{account.accountId}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.name}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.group}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.balance.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.equity.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.leverage}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.credit.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.margin.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.marginFree.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.marginLevel.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.profit.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.comment}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.city}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.state}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.address}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.registration}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.lastAccess}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.lastIP}</td>
-                      </tr>
-                    ))}
+                    {viewModal.accounts.map((account, index) => {
+                      console.log(`🔍 Rendering account ${index + 1}:`, account);
+                      return (
+                        <tr key={index}>
+                          <td className="border border-gray-300 px-4 py-2">{account.accountId}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.name}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.group}</td>
+                          <td className="border border-gray-300 px-4 py-2">${account.balance.toFixed(2)}</td>
+                          <td className="border border-gray-300 px-4 py-2">${account.equity.toFixed(2)}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.leverage}</td>
+                          <td className="border border-gray-300 px-4 py-2">${account.credit.toFixed(2)}</td>
+                          <td className="border border-gray-300 px-4 py-2">${account.margin.toFixed(2)}</td>
+                          <td className="border border-gray-300 px-4 py-2">${account.marginFree.toFixed(2)}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.marginLevel.toFixed(2)}</td>
+                          <td className="border border-gray-300 px-4 py-2">${account.profit.toFixed(2)}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.comment}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.city}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.state}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.address}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.registration}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.lastAccess}</td>
+                          <td className="border border-gray-300 px-4 py-2">{account.lastIP}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

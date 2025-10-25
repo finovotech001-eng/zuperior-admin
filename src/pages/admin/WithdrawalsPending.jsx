@@ -100,6 +100,7 @@ export default function WithdrawalsPending() {
     try {
       const r = await fetch(`${BASE}/admin/withdrawals/${row.id}/approve`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
       });
       const data = await r.json();
       if (!data?.ok) throw new Error(data?.error || 'Failed to approve');
