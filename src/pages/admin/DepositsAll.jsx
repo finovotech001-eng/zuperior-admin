@@ -17,9 +17,7 @@ export default function DepositsAll() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const BASE = import.meta.env.VITE_BACKEND_API_URL
-    || import.meta.env.VITE_API_BASE_URL
-    || "http://localhost:5003";
+  const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
   useEffect(() => {
     let stop = false;

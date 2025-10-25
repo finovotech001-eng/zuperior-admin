@@ -17,7 +17,6 @@ import AddUser from "../pages/admin/AddUser.jsx";
 import UsersWithBalance from "../pages/admin/UsersWithBalance.jsx";
 import MT5Users from "../pages/admin/MT5Users.jsx";
 import MT5Assign from "../pages/admin/MT5Assign.jsx";
-import BalanceOperations from "../pages/admin/BalanceOperations.jsx";
 import DepositsPending from "../pages/admin/DepositsPending.jsx";
 import DepositsApproved from "../pages/admin/DepositsApproved.jsx";
 import DepositsRejected from "../pages/admin/DepositsRejected.jsx";
@@ -98,7 +97,6 @@ export default [
   { path: "mt5",            element: <EmptyState title="MT5 Management" subtitle="Manager tools" /> },
   { path: "mt5/users",      element: <MT5Users /> },
   { path: "mt5/assign",     element: <MT5Assign /> },
-  { path: "mt5/balance-operations", element: <BalanceOperations /> },
   { path: "mt5/transfer",   element: <EmptyState title="Internal Transfer" subtitle="Move funds internally" /> },
 
   /* --------------------------- FINANCE & OPS -------------------------- */

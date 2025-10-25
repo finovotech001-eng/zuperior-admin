@@ -18,6 +18,8 @@ import {
   Building2
 } from "lucide-react";
 
+const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
+
 const GATEWAY_TYPES = [
   { value: 'crypto', label: 'Cryptocurrency', icon: DollarSign, color: 'bg-orange-100 text-orange-800' },
   { value: 'wire', label: 'Wire Transfer', icon: Building2, color: 'bg-blue-100 text-blue-800' },
@@ -48,7 +50,7 @@ export default function PaymentGatewaysManual() {
   const fetchGateways = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('${BASE}/admin/manual-gateways', {
+      const response = await fetch(`${BASE}/admin/manual-gateways`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -88,7 +90,7 @@ export default function PaymentGatewaysManual() {
 
       const url = editingGateway 
         ? `${BASE}/admin/manual-gateways/${editingGateway.id}`
-        : '${BASE}/admin/manual-gateways';
+        : `${BASE}/admin/manual-gateways`;
       
       const method = editingGateway ? 'PUT' : 'POST';
       

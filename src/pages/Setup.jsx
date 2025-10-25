@@ -13,7 +13,7 @@ export default function Setup() {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
-  const BASE_URL = import.meta.env.VITE_BACKEND_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:5003";
+  const BASE_URL = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
   const handleSubmit = async (e) => {
     e.preventDefault();

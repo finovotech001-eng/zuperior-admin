@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+
+const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 import { 
   User, 
   Mail, 
@@ -54,7 +56,7 @@ export default function AdminProfile() {
         return;
       }
 
-      const response = await fetch('${BASE}/admin/profile', {
+      const response = await fetch(`${BASE}/admin/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -99,7 +101,7 @@ export default function AdminProfile() {
         return;
       }
 
-      const response = await fetch('${BASE}/admin/login-history', {
+      const response = await fetch(`${BASE}/admin/login-history`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -130,7 +132,7 @@ export default function AdminProfile() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('${BASE}/admin/profile', {
+      const response = await fetch(`${BASE}/admin/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

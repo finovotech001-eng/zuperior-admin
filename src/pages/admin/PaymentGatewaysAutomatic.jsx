@@ -15,6 +15,8 @@ import {
   EyeOff
 } from "lucide-react";
 
+const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
+
 export default function PaymentGatewaysAutomatic() {
   const [gateways, setGateways] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export default function PaymentGatewaysAutomatic() {
   const fetchGateways = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('${BASE}/admin/payment-gateways', {
+      const response = await fetch(`${BASE}/admin/payment-gateways`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -66,7 +68,7 @@ export default function PaymentGatewaysAutomatic() {
       const token = localStorage.getItem('adminToken');
       const url = editingGateway 
         ? `${BASE}/admin/payment-gateways/${editingGateway.id}`
-        : '${BASE}/admin/payment-gateways';
+        : `${BASE}/admin/payment-gateways`;
       
       const method = editingGateway ? 'PUT' : 'POST';
       

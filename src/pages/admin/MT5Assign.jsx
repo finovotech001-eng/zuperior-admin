@@ -19,9 +19,7 @@ export default function MT5Assign() {
     password: "",
   });
 
-  const BASE = import.meta.env.VITE_BACKEND_API_URL
-    || import.meta.env.VITE_API_BASE_URL
-    || "http://localhost:5003";
+  const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -65,14 +63,24 @@ export default function MT5Assign() {
     try {
       const response = await axios.get(`${BASE}/admin/mt5/account/${formData.accountId}`, {
         timeout: 5000,
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
       });
       if (response.data?.ok) {
-        setAccountInfo(response.data.data);
+        const data = response.data.account;
+        if (!data) {
+          console.warn(`No data received for account ${formData.accountId}:`, response.data);
+          setFetchError("No data received from MT5 API.");
+        } else {
+          setAccountInfo(data);
+        }
       } else {
-        setFetchError("Failed to fetch account info from MT5.");
+        console.warn(`API returned error for account ${formData.accountId}:`, response.data);
+        setFetchError(`Failed to fetch account info from MT5: ${response.data?.error || 'Unknown error'}`);
       }
     } catch (error) {
-      setFetchError("Failed to fetch account info from MT5.");
+      console.warn(`Failed to fetch account info for ${formData.accountId}:`, error.message);
+      console.warn('Full error details:', error);
+      setFetchError(`Failed to fetch account info from MT5: ${error.message}`);
     }
   }
 
@@ -89,6 +97,8 @@ export default function MT5Assign() {
         userId: formData.userId,
         accountId: formData.accountId,
         password: formData.password || undefined,
+      }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
       });
       if (response.data?.ok) {
         setAssignSuccess("MT5 account assigned successfully!");
@@ -98,7 +108,7 @@ export default function MT5Assign() {
         setAssignError(response.data?.error || "Failed to assign account");
       }
     } catch (error) {
-      setAssignError("Failed to assign account");
+      setAssignError(`Failed to assign account: ${error.message}`);
     } finally {
       setAssignLoading(false);
     }

@@ -108,7 +108,10 @@ export default function SendEmails() {
     try {
       const response = await fetch(`/api/admin/send-emails`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
         body: JSON.stringify({
           recipients,
           subject: emailData.subject,

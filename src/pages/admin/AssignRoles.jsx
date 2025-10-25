@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { ROLE_FEATURES } from "../../components/SidebarMenuConfig.js";
+
+const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 import { 
   Users, 
   Shield, 
@@ -171,7 +173,7 @@ export default function AssignRoles() {
   const fetchAdmins = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('${BASE}/admin/admins', {
+      const response = await fetch(`${BASE}/admin/admins`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -196,7 +198,7 @@ export default function AssignRoles() {
     
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('${BASE}/admin/admins', {
+      const response = await fetch(`${BASE}/admin/admins`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -330,7 +332,7 @@ export default function AssignRoles() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('${BASE}/admin/roles', {
+      const response = await fetch(`${BASE}/admin/roles`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

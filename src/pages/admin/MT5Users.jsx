@@ -20,9 +20,7 @@ export default function MT5Users() {
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [accountsError, setAccountsError] = useState("");
 
-  const BASE = import.meta.env.VITE_BACKEND_API_URL
-    || import.meta.env.VITE_API_BASE_URL
-    || "http://localhost:5003";
+  const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
   useEffect(() => {
     let stop = false;
@@ -88,9 +86,14 @@ export default function MT5Users() {
           try {
             const response = await axios.get(`${BASE}/admin/mt5/account/${account.accountId}`, {
               timeout: 5000,
+              headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
             });
             if (response.data?.ok) {
-              const data = response.data.data;
+              const data = response.data.account;
+              if (!data) {
+                console.warn(`No data received for account ${account.accountId}:`, response.data);
+                throw new Error('No data received from API');
+              }
               return {
                 accountId: data.Login || account.accountId,
                 name: data.Name || "-",
@@ -113,10 +116,12 @@ export default function MT5Users() {
                 lastIP: data.LastIP || "-",
               };
             } else {
-              throw new Error('Failed to fetch');
+              console.warn(`API returned error for account ${account.accountId}:`, response.data);
+              throw new Error(`API error: ${response.data?.error || 'Unknown error'}`);
             }
           } catch (error) {
             console.warn(`Failed to fetch details for account ${account.accountId}:`, error.message);
+            console.warn('Full error details:', error);
             return {
               accountId: account.accountId,
               name: "-",

@@ -1,6 +1,5 @@
 // src/pages/Login.jsx
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, Shield, AlertTriangle } from "lucide-react";
 
 // Security utility functions
@@ -41,11 +40,10 @@ export default function Login() {
   const [csrfToken, setCsrfToken] = useState("");
   const [captchaRequired, setCaptchaRequired] = useState(false);
   const [captchaValue, setCaptchaValue] = useState("");
-  const navigate = useNavigate();
   const formRef = useRef(null);
   const lastAttemptTime = useRef(0);
 
-  const BASE_URL = import.meta.env.VITE_BACKEND_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:5003";
+  const BASE_URL = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
   // Initialize security measures
   useEffect(() => {

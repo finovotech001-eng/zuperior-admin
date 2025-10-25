@@ -22,9 +22,7 @@ export default function DepositsPending() {
   const [approving, setApproving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  const BASE = import.meta.env.VITE_BACKEND_API_URL
-    || import.meta.env.VITE_API_BASE_URL
-    || "http://localhost:5003";
+  const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
   useEffect(() => {
     let stop = false;
@@ -92,14 +90,37 @@ export default function DepositsPending() {
   async function onApprove(row) {
     setApproving(true);
     try {
+      // First, add balance to MT5 account
+      if (row.mt5AccountId && row.mt5AccountId !== "-") {
+        const mt5Response = await fetch(`${BASE}/admin/mt5/balance/add/${row.mt5AccountId}`, {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            balance: parseFloat(row.amount),
+            comment: `Deposit approval - Transaction ID: ${row.id}`
+          })
+        });
+        
+        const mt5Data = await mt5Response.json();
+        if (!mt5Data.Success) {
+          throw new Error(mt5Data.Error || 'Failed to add balance to MT5 account');
+        }
+      }
+
+      // Then approve the deposit in the system
       const r = await fetch(`${BASE}/admin/deposits/${row.id}/approve`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
       });
       const data = await r.json();
       if (!data?.ok) throw new Error(data?.error || 'Failed to approve');
+      
       setRows(list => list.filter(it => it.id !== row.id));
       setConfirmApprove(null);
-      setSuccessMessage(data.message || 'Deposit approved successfully.');
+      setSuccessMessage(data.message || 'Deposit approved and MT5 balance updated successfully.');
       setTimeout(() => setSuccessMessage(""), 5000);
     } catch (e) {
       alert(e.message || String(e));
