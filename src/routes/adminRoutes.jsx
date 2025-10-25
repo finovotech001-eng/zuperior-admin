@@ -27,6 +27,7 @@ import WithdrawalsRejected from "../pages/admin/WithdrawalsRejected.jsx";
 import WithdrawalsAll from "../pages/admin/WithdrawalsAll.jsx";
 import BulkLogs from "../pages/admin/BulkLogs.jsx";
 import SendEmails from "../pages/admin/SendEmails.jsx";
+import Logout from "../pages/admin/Logout.jsx";
 /** Admin Dashboard */
 
 export default [
@@ -140,5 +141,5 @@ export default [
   { path: "assign-roles",        element: <AssignRoles /> },
 
   /* ------------------------------ AUTH -------------------------------- */
-  { path: "logout", element: <EmptyState title="Logging out" subtitle="Clearing session & redirect…" /> },
+  { path: "logout", element: <Logout /> },
 ];

@@ -287,10 +287,7 @@ export default function Topbar({
                       <User className="h-4 w-4 opacity-80" /> Profile
                     </a>
                     <button 
-                      onClick={() => {
-                        logout();
-                        navigate('/login');
-                      }}
+                      onClick={logout}
                       className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 text-rose-600 w-full text-left"
                     >
                       <LogOut className="h-4 w-4 opacity-80" /> Logout

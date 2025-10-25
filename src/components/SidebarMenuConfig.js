@@ -187,7 +187,7 @@ export const ADMIN_MENU = [
       // { icon: ServerCog, label: "MT5 Connection", to: "mt5-connection" },
       { icon: KeySquare, label: "Assign Roles", to: "assign-roles" },
       { icon: UserCog, label: "Admin Profile", to: "profile" },
-      { icon: Settings, label: "Logout", to: "/logout" },
+      { icon: Settings, label: "Logout", to: "logout" },
     ],
   },
 ];
