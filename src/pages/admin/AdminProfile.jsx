@@ -54,7 +54,7 @@ export default function AdminProfile() {
         return;
       }
 
-      const response = await fetch('http://localhost:5003/admin/profile', {
+      const response = await fetch('${BASE}/admin/profile', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ export default function AdminProfile() {
         return;
       }
 
-      const response = await fetch('http://localhost:5003/admin/login-history', {
+      const response = await fetch('${BASE}/admin/login-history', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -130,7 +130,7 @@ export default function AdminProfile() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:5003/admin/profile', {
+      const response = await fetch('${BASE}/admin/profile', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

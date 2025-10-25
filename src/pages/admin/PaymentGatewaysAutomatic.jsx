@@ -39,7 +39,7 @@ export default function PaymentGatewaysAutomatic() {
   const fetchGateways = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:5003/admin/payment-gateways', {
+      const response = await fetch('${BASE}/admin/payment-gateways', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -65,8 +65,8 @@ export default function PaymentGatewaysAutomatic() {
     try {
       const token = localStorage.getItem('adminToken');
       const url = editingGateway 
-        ? `http://localhost:5003/admin/payment-gateways/${editingGateway.id}`
-        : 'http://localhost:5003/admin/payment-gateways';
+        ? `${BASE}/admin/payment-gateways/${editingGateway.id}`
+        : '${BASE}/admin/payment-gateways';
       
       const method = editingGateway ? 'PUT' : 'POST';
       
@@ -126,7 +126,7 @@ export default function PaymentGatewaysAutomatic() {
     
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5003/admin/payment-gateways/${id}`, {
+      const response = await fetch(`${BASE}/admin/payment-gateways/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

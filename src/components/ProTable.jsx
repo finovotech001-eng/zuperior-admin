@@ -14,7 +14,7 @@ import Badge from "./Badge.jsx";
  *  dateKey: "executedAt" (Date ISO)
  * }
  */
-export default function ProTable({ title, kpis=[], rows, columns, filters, pageSize=10, searchPlaceholder="Search..." }) {
+export default function ProTable({ title, kpis=[], rows=[], columns=[], filters, pageSize=10, searchPlaceholder="Search..." }) {
   const [q, setQ] = useState("");
   const [selects, setSelects] = useState(
     Object.fromEntries((filters?.selects||[]).map(s=>[s.key,""]))

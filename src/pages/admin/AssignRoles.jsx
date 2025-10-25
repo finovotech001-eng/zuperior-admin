@@ -171,7 +171,7 @@ export default function AssignRoles() {
   const fetchAdmins = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:5003/admin/admins', {
+      const response = await fetch('${BASE}/admin/admins', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -196,7 +196,7 @@ export default function AssignRoles() {
     
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:5003/admin/admins', {
+      const response = await fetch('${BASE}/admin/admins', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -229,7 +229,7 @@ export default function AssignRoles() {
   const handleUpdateRole = async (adminId, newRole) => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5003/admin/admins/${adminId}/role`, {
+      const response = await fetch(`${BASE}/admin/admins/${adminId}/role`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -289,7 +289,7 @@ export default function AssignRoles() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5003/admin/admins/${selectedAdmin.id}/password`, {
+      const response = await fetch(`${BASE}/admin/admins/${selectedAdmin.id}/password`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -330,7 +330,7 @@ export default function AssignRoles() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:5003/admin/roles', {
+      const response = await fetch('${BASE}/admin/roles', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
