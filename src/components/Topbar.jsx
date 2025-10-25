@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Menu, Shield, Bell, Search, ChevronDown, User, LogOut } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU } from "./SidebarMenuConfig.js";
 
 /**
@@ -25,6 +26,7 @@ export default function Topbar({
   const searchRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const { admin, logout } = useAuth();
   // Light theme: use plain white background (no gradient)
 
   // Get menu items based on role
@@ -37,29 +39,34 @@ export default function Topbar({
     }
   };
 
-  // Flatten menu items for search
+  // Flatten menu items for search - only sidebar features
   const getAllMenuItems = () => {
     const menuItems = getMenuItems();
     const items = [];
     
     menuItems.forEach(section => {
       section.items.forEach(item => {
-        items.push({
-          label: item.label,
-          to: item.to,
-          section: section.label
-        });
-        
-        // Add children if they exist
-        if (item.children) {
-          item.children.forEach(child => {
-            items.push({
-              label: child.label,
-              to: child.to,
-              section: section.label,
-              parent: item.label
-            });
+        // Only add main menu items (not logout)
+        if (item.to !== '/logout') {
+          items.push({
+            label: item.label,
+            to: item.to,
+            section: section.label,
+            icon: item.icon
           });
+          
+          // Add children if they exist
+          if (item.children) {
+            item.children.forEach(child => {
+              items.push({
+                label: child.label,
+                to: child.to,
+                section: section.label,
+                parent: item.label,
+                icon: item.icon
+              });
+            });
+          }
         }
       });
     });
@@ -74,7 +81,7 @@ export default function Topbar({
     return currentItem ? currentItem.label : title;
   };
 
-  // Search functionality
+  // Search functionality - only sidebar features
   const handleSearch = (query) => {
     setSearchQuery(query);
     if (!query.trim()) {
@@ -87,7 +94,7 @@ export default function Topbar({
       item.label.toLowerCase().includes(query.toLowerCase()) ||
       item.section.toLowerCase().includes(query.toLowerCase()) ||
       (item.parent && item.parent.toLowerCase().includes(query.toLowerCase()))
-    ).slice(0, 8); // Limit to 8 results
+    ).slice(0, 6); // Limit to 6 results for better UX
 
     setSearchResults(filtered);
   };
@@ -164,8 +171,17 @@ export default function Topbar({
               <div className="md:hidden font-semibold truncate">{getCurrentPageName()}</div>
             </div>
 
-            {/* Search (md+) */}
-            <div className="hidden md:flex relative" ref={searchRef}>
+            {/* Mobile Search Button (xs only) */}
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="sm:hidden inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300"
+              aria-label="Search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+
+            {/* Search (sm+) */}
+            <div className="hidden sm:flex relative" ref={searchRef}>
               <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 border border-gray-200 min-w-[260px] max-w-md w-full">
                 <Search className="h-4 w-4 opacity-80" />
                 <input
@@ -176,7 +192,7 @@ export default function Topbar({
                     setIsSearchOpen(true);
                   }}
                   onFocus={() => setIsSearchOpen(true)}
-                  placeholder="Search menus, balance, MT5 accounts..."
+                  placeholder="Search sidebar features..."
                   className="w-full bg-transparent placeholder:text-gray-500 text-gray-800 outline-none"
                 />
               </div>
@@ -191,14 +207,17 @@ export default function Topbar({
                         onClick={() => handleNavigate(item.to)}
                         className="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors group"
                       >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-gray-900 font-medium text-sm">{item.label}</div>
+                        <div className="flex items-center gap-3">
+                          {item.icon && (
+                            <item.icon className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-gray-900 font-medium text-sm truncate">{item.label}</div>
                             <div className="text-gray-500 text-xs">
                               {item.parent ? `${item.section} > ${item.parent}` : item.section}
                             </div>
                           </div>
-                          <div className="text-gray-500 group-hover:text-gray-700 transition-colors">
+                          <div className="text-gray-500 group-hover:text-gray-700 transition-colors flex-shrink-0">
                             <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
                           </div>
                         </div>
@@ -261,15 +280,21 @@ export default function Topbar({
               {open && (
                 <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white text-gray-800 shadow-2xl">
                   <div className="px-3 py-2 text-xs text-gray-500">
-                    Signed in as <span className="text-gray-700">you@example.com</span>
+                    Signed in as <span className="text-gray-700">{admin?.email || 'admin@zuperior.io'}</span>
                   </div>
                   <div className="divide-y divide-gray-100">
                     <a href={profileHref} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100">
                       <User className="h-4 w-4 opacity-80" /> Profile
                     </a>
-                    <a href={logoutHref} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 text-rose-600">
+                    <button 
+                      onClick={() => {
+                        logout();
+                        navigate('/login');
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 text-rose-600 w-full text-left"
+                    >
                       <LogOut className="h-4 w-4 opacity-80" /> Logout
-                    </a>
+                    </button>
                   </div>
                 </div>
               )}

@@ -31,7 +31,10 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
     setLoading(true);
     setError("");
     const search = new URLSearchParams({ limit: '500', ...Object.fromEntries(Object.entries(queryParams).map(([k,v])=>[k,String(v)])) });
-    fetch(`${BASE}/admin/users/all?${search.toString()}`)
+    const token = localStorage.getItem('adminToken');
+    fetch(`${BASE}/admin/users/all?${search.toString()}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(r => r.json())
       .then(data => {
         if (stop) return;
@@ -118,9 +121,10 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
   async function onToggleVerify(row) {
     try {
       const next = row.emailVerified !== 'Yes';
+      const token = localStorage.getItem('adminToken');
       const r = await fetch(`${BASE}/admin/users/${row.id}/email-verify`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ verified: next })
       });
       const data = await r.json();
@@ -133,7 +137,11 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
 
   async function onDelete(row) {
     try {
-      const r = await fetch(`${BASE}/admin/users/${row.id}`, { method: 'DELETE' });
+      const token = localStorage.getItem('adminToken');
+      const r = await fetch(`${BASE}/admin/users/${row.id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await r.json();
       if (!data?.ok) throw new Error(data?.error || 'Failed');
       setRows(list => list.filter(it => it.id!==row.id));
@@ -146,9 +154,10 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
 
   async function onEditSubmit(state) {
     try {
+      const token = localStorage.getItem('adminToken');
       const r = await fetch(`${BASE}/admin/users/${state.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ name: state.name, phone: state.phone, country: state.country, status: state.status })
       });
       const data = await r.json();
@@ -163,9 +172,10 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
   async function onToggleBan(row, nextStatus) {
     try {
       const next = nextStatus || (row.status === 'banned' ? 'active' : 'banned');
+      const token = localStorage.getItem('adminToken');
       const r = await fetch(`${BASE}/admin/users/${row.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: next })
       });
       const data = await r.json();

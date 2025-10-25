@@ -90,36 +90,49 @@ export default function ProTable({ title, kpis=[], rows, columns, filters, pageS
       )}
 
       {/* Filters */}
-      <div className="rounded-2xl bg-white p-3 md:p-4 shadow-sm border border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-          <input
-            value={q}
-            onChange={e=>{setQ(e.target.value); setPage(1);}}
-            placeholder={searchPlaceholder}
-            className="md:col-span-4 rounded-lg border-gray-300 bg-white px-3 h-[40px] outline-none"
-          />
+      <div className="rounded-2xl bg-white p-4 md:p-6 shadow-sm border border-gray-200">
+        <div className="flex flex-col lg:flex-row gap-4 items-center">
+          {/* Search Input */}
+          <div className="flex-1 w-full lg:w-auto">
+            <input
+              value={q}
+              onChange={e=>{setQ(e.target.value); setPage(1);}}
+              placeholder={searchPlaceholder}
+              className="w-full rounded-lg border-gray-300 bg-white px-4 py-3 h-[44px] outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            />
+          </div>
 
-          {(filters?.selects||[]).map((s,i)=>(
-            <select key={i}
-              value={selects[s.key]}
-              onChange={e=>{ setSelects(v=>({...v,[s.key]:e.target.value})); setPage(1); }}
-              className="md:col-span-2 rounded-lg border-gray-300 bg-white px-3 h-[40px]">
-              <option value="">{s.label}</option>
-              {s.options.map(opt=> <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-          ))}
+          {/* Select Filters */}
+          <div className="flex flex-wrap gap-3">
+            {(filters?.selects||[]).map((s,i)=>(
+              <select key={i}
+                value={selects[s.key]}
+                onChange={e=>{ setSelects(v=>({...v,[s.key]:e.target.value})); setPage(1); }}
+                className="rounded-lg border-gray-300 bg-white px-4 py-3 h-[44px] min-w-[120px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                <option value="">{s.label}</option>
+                {s.options.map(opt=> <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            ))}
 
-          {/* dates */}
-          <input type="date" value={from} onChange={e=>{setFrom(e.target.value); setPage(1);}}
-                 className="md:col-span-1 rounded-lg border-gray-300 bg-white px-3 h-[40px]" />
-          <input type="date" value={to}   onChange={e=>{setTo(e.target.value); setPage(1);}}
-                 className="md:col-span-1 rounded-lg border-gray-300 bg-white px-3 h-[40px]" />
+            {/* Date Inputs */}
+            <div className="flex gap-2">
+              <input type="date" value={from} onChange={e=>{setFrom(e.target.value); setPage(1);}}
+                     className="rounded-lg border-gray-300 bg-white px-4 py-3 h-[44px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" />
+              <input type="date" value={to}   onChange={e=>{setTo(e.target.value); setPage(1);}}
+                     className="rounded-lg border-gray-300 bg-white px-4 py-3 h-[44px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" />
+            </div>
+          </div>
 
-          <div className="md:col-span-4 flex gap-2 justify-end">
+          {/* Action Buttons */}
+          <div className="flex gap-3">
             <button onClick={clearDates}
-              className="rounded-lg border border-gray-300 bg-white px-4 h-[40px]">Clear Dates</button>
+              className="rounded-lg border border-gray-300 bg-white px-6 py-3 h-[44px] hover:bg-gray-50 transition-all font-medium">
+              Clear Dates
+            </button>
             <button onClick={resetAll}
-              className="rounded-lg bg-violet-600 hover:bg-violet-700 text-white px-4 h-[40px] shadow">Reset All</button>
+              className="rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 h-[44px] shadow-md hover:shadow-lg transition-all font-medium">
+              Reset All
+            </button>
           </div>
         </div>
       </div>
@@ -128,7 +141,7 @@ export default function ProTable({ title, kpis=[], rows, columns, filters, pageS
       <div className="rounded-2xl overflow-hidden bg-white shadow-sm border border-gray-200">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 sticky top-0 z-[1]">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-[1]">
               <tr>
                 {columns.map(col=>(
                   <th key={col.key}
@@ -138,21 +151,21 @@ export default function ProTable({ title, kpis=[], rows, columns, filters, pageS
                           ? {key:col.key, dir: s.dir==="asc"?"desc":"asc"}
                           : {key:col.key, dir:"asc"});
                       }}
-                      className={`px-4 py-3 font-semibold text-gray-700 select-none whitespace-nowrap ${col.key==='__index' || col.sortable===false ? '' : 'cursor-pointer'}`}>
+                      className={`px-6 py-4 font-semibold text-gray-800 select-none whitespace-nowrap text-center border-r border-gray-200 last:border-r-0 ${col.key==='__index' || col.sortable===false ? '' : 'cursor-pointer hover:bg-gray-200 transition-colors'}`}>
                     {col.label}{sortBy?.key===col.key ? (sortBy.dir==="asc"?" ▲":" ▼") : ""}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-200">
               {slice.map((r,i)=>(
-                <tr key={i} className="hover:bg-gray-50">
+                <tr key={i} className="hover:bg-gray-50 transition-colors">
                   {columns.map(c=>{
                     const content = c.key==='__index'
                       ? (baseIndex + i + 1)
                       : (c.render ? c.render(r[c.key], r, Badge, baseIndex + i) : r[c.key]);
                     return (
-                      <td key={c.key} className="px-4 py-3 whitespace-nowrap">
+                      <td key={c.key} className="px-6 py-4 whitespace-nowrap text-center border-r border-gray-100 last:border-r-0">
                         {content}
                       </td>
                     );
@@ -160,27 +173,37 @@ export default function ProTable({ title, kpis=[], rows, columns, filters, pageS
                 </tr>
               ))}
               {!slice.length && (
-                <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500">No data</td></tr>
+                <tr><td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500 bg-gray-50">No data available</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
-          <div className="text-xs text-gray-600">
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
+          <div className="text-sm text-gray-700 font-medium">
             Showing {(page-1)*pageSize+1}-{Math.min(page*pageSize,total)} of {total}
           </div>
           <div className="flex gap-2">
             <button onClick={()=>setPage(1)} disabled={page===1}
-              className="rounded-md border px-3 py-1.5 disabled:opacity-50">« First</button>
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+              « First
+            </button>
             <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}
-              className="rounded-md border px-3 py-1.5 disabled:opacity-50">‹ Prev</button>
-            <span className="rounded-md border px-3 py-1.5 bg-white">{page}</span>
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+              ‹ Prev
+            </button>
+            <span className="rounded-lg border border-gray-300 bg-purple-600 text-white px-4 py-2 text-sm font-medium">
+              {page}
+            </span>
             <button onClick={()=>setPage(p=>Math.min(pages,p+1))} disabled={page===pages}
-              className="rounded-md border px-3 py-1.5 disabled:opacity-50">Next ›</button>
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+              Next ›
+            </button>
             <button onClick={()=>setPage(pages)} disabled={page===pages}
-              className="rounded-md border px-3 py-1.5 disabled:opacity-50">Last »</button>
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+              Last »
+            </button>
           </div>
         </div>
       </div>

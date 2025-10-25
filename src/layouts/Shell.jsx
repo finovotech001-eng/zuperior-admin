@@ -5,8 +5,14 @@ import Sidebar from "../components/Sidebar.jsx";
 import Topbar from "../components/Topbar.jsx";
 import { ADMIN_MENU, SUPERADMIN_MENU, USER_MENU } from "../components/SidebarMenuConfig.js";
 import { LayoutDashboard, Users as UsersIcon } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
-export default function Shell({ role }) {
+export default function Shell() {
+  const { admin } = useAuth();
+  
+  // Determine role based on admin's role
+  const role = admin?.role === 'superadmin' ? 'superadmin' : 'admin';
+  console.log('Shell - admin:', admin, 'role:', role);
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -44,8 +50,8 @@ export default function Shell({ role }) {
         const sec = menu.find(s => s.label.toLowerCase().includes('clients')) || menu[0];
         const manage = sec?.items?.find(i => i.label.toLowerCase().includes('manage users'));
         const all = manage?.children?.find(c => c.label.toLowerCase().includes('all users'));
-        if (manage) list.push({ label: manage.label, to: manage.to, icon: manage.icon || UsersIcon });
-        if (all) list.push({ label: all.label, to: all.to, icon: manage?.icon || UsersIcon });
+        if (manage) list.push({ label: manage.label, to: `/admin/${manage.to}`, icon: manage.icon || UsersIcon });
+        if (all) list.push({ label: all.label, to: `/admin/${all.to}`, icon: manage?.icon || UsersIcon });
         list.push({ label: 'User Details' });
       }
     }
@@ -57,6 +63,7 @@ export default function Shell({ role }) {
       {/* Fixed sidebar (desktop) + drawer (mobile) */}
       <Sidebar
         role={role}
+        adminRole={admin?.role || 'admin'}
         pathname={pathname}
         open={mobileOpen}
         onClose={closeSidebar}

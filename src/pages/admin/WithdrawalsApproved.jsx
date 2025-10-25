@@ -25,7 +25,10 @@ export default function WithdrawalsApproved() {
     let stop = false;
     setLoading(true);
     setError("");
-    fetch(`${BASE}/admin/withdrawals?status=approved&limit=500`)
+    const token = localStorage.getItem('adminToken');
+    fetch(`${BASE}/admin/withdrawals?status=approved&limit=500`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(r => r.json())
       .then(data => {
         if (stop) return;

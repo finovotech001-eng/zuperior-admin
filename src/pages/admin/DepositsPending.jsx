@@ -30,7 +30,10 @@ export default function DepositsPending() {
     let stop = false;
     setLoading(true);
     setError("");
-    fetch(`${BASE}/admin/deposits?status=pending&limit=500`)
+    const token = localStorage.getItem('adminToken');
+    fetch(`${BASE}/admin/deposits?status=pending&limit=500`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(r => r.json())
       .then(data => {
         if (stop) return;

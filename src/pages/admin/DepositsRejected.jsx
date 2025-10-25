@@ -25,7 +25,10 @@ export default function DepositsRejected() {
     let stop = false;
     setLoading(true);
     setError("");
-    fetch(`${BASE}/admin/deposits?status=rejected&limit=500`)
+    const token = localStorage.getItem('adminToken');
+    fetch(`${BASE}/admin/deposits?status=rejected&limit=500`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(r => r.json())
       .then(data => {
         if (stop) return;

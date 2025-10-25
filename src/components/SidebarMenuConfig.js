@@ -5,6 +5,41 @@ import {
   GitBranch, Network, Copy, Layers, ListChecks, Wallet, CreditCard, QrCode, Activity, Terminal, Headphones
 } from "lucide-react";
 
+// Role-based feature access based on actual sidebar menu
+export const ROLE_FEATURES = {
+  superadmin: [
+    'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
+    'payment-gateways', 'bulk-logs', 'send-emails', 'assign-roles', 'profile'
+  ],
+  admin: [
+    'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
+    'payment-gateways', 'bulk-logs', 'send-emails'
+  ],
+  moderator: [
+    'dashboard', 'users', 'kyc', 'bulk-logs', 'send-emails'
+  ],
+  support: [
+    'dashboard', 'users', 'kyc', 'send-emails'
+  ],
+  analyst: [
+    'dashboard', 'users', 'kyc', 'bulk-logs'
+  ]
+};
+
+// Function to filter menu based on admin role
+export function getMenuForRole(role) {
+  const allowedFeatures = ROLE_FEATURES[role] || ROLE_FEATURES.admin;
+  
+  return ADMIN_MENU.map(section => ({
+    ...section,
+    items: section.items.filter(item => {
+      // Extract the path from the 'to' property
+      const path = item.to.split('/').pop() || item.to;
+      return allowedFeatures.includes(path);
+    })
+  })).filter(section => section.items.length > 0);
+}
+
 /* -------------------- SUPER ADMIN -------------------- */
 export const SUPERADMIN_MENU = [
   {
@@ -42,7 +77,7 @@ export const SUPERADMIN_MENU = [
 export const ADMIN_MENU = [
   {
     label: "ADMIN PANEL",
-    items: [{ icon: LineChart, label: "Dashboard", to: "/admin/dashboard" }],
+    items: [{ icon: LineChart, label: "Dashboard", to: "dashboard" }],
   },
   {
     label: "CLIENTS & ACCESS",
@@ -50,19 +85,19 @@ export const ADMIN_MENU = [
       {
         icon: Users,
         label: "Manage Users",
-        to: "/admin/users",
+        to: "users",
         children: [
-          { label: "Add User", to: "/admin/users/add" },
-          { label: "All Users", to: "/admin/users/all" },
-          { label: "Active Users", to: "/admin/users/active" },
-          { label: "Banned Users", to: "/admin/users/banned" },
-          { label: "Email Unverified", to: "/admin/users/email-unverified" },
-          { label: "With Balance", to: "/admin/users/with-balance" },
+          { label: "Add User", to: "users/add" },
+          { label: "All Users", to: "users/all" },
+          { label: "Active Users", to: "users/active" },
+          { label: "Banned Users", to: "users/banned" },
+          { label: "Email Unverified", to: "users/email-unverified" },
+          { label: "With Balance", to: "users/with-balance" },
         ],
       },
-      { icon: ShieldCheck, label: "KYC Verifications", to: "/admin/kyc" },
-      // { icon: Users, label: "Manage MT5 Groups", to: "/admin/add-group" },
-      { icon: KeySquare, label: "Activity / Login Logs", to: "/admin/activity-logs" },
+      { icon: ShieldCheck, label: "KYC Verifications", to: "kyc" },
+      // { icon: Users, label: "Manage MT5 Groups", to: "add-group" },
+    
     ],
   },
   {
@@ -71,10 +106,10 @@ export const ADMIN_MENU = [
       {
         icon: LayoutDashboard,
         label: "MT5 Management",
-        to: "/admin/mt5",
+        to: "mt5",
         children: [
-          { label: "MT5 Users List", to: "/admin/mt5/users" },
-          { label: "Assign MT5 to Email", to: "/admin/mt5/assign" },
+          { label: "MT5 Users List", to: "mt5/users" },
+          { label: "Assign MT5 to Email", to: "mt5/assign" },
         ],
       },
     ],
@@ -85,37 +120,36 @@ export const ADMIN_MENU = [
       {
         icon: Calculator,
         label: "Manage Deposits",
-        to: "/admin/deposits",
+        to: "deposits",
         children: [
-          { label: "Pending Deposits", to: "/admin/deposits/pending" },
-          { label: "Approved Deposits", to: "/admin/deposits/approved" },
-          { label: "Rejected Deposits", to: "/admin/deposits/rejected" },
-          { label: "All Deposits", to: "/admin/deposits/all" },
+          { label: "Pending Deposits", to: "deposits/pending" },
+          { label: "Approved Deposits", to: "deposits/approved" },
+          { label: "Rejected Deposits", to: "deposits/rejected" },
+          { label: "All Deposits", to: "deposits/all" },
         ],
       },
       {
         icon: Calculator,
         label: "Manage Withdrawals",
-        to: "/admin/withdrawals",
+        to: "withdrawals",
         children: [
-          { label: "Pending Withdrawals", to: "/admin/withdrawals/pending" },
-          { label: "Approved Withdrawals", to: "/admin/withdrawals/approved" },
-          { label: "Rejected Withdrawals", to: "/admin/withdrawals/rejected" },
-          { label: "All Withdrawals", to: "/admin/withdrawals/all" },
+          { label: "Pending Withdrawals", to: "withdrawals/pending" },
+          { label: "Approved Withdrawals", to: "withdrawals/approved" },
+          { label: "Rejected Withdrawals", to: "withdrawals/rejected" },
+          { label: "All Withdrawals", to: "withdrawals/all" },
         ],
       },
       {
         icon: CreditCard,
         label: "Payment Gateways",
-        to: "/admin/payment-gateways",
+        to: "payment-gateways",
         children: [
-          { label: "Automatic Gateways", to: "/admin/payment-gateways/automatic" },
-          { label: "Manual Gateways", to: "/admin/payment-gateways/manual" },
-          { label: "USDT Gateway", to: "/admin/usdt-gateways/manual" },
+          { label: "Deposit Gateway", to: "payment-gateways/automatic" },
+          { label: "Manual Gateways", to: "payment-gateways/manual" },
         ],
       },
-      // { icon: QrCode, label: "Wallet QR Upload", to: "/admin/wallet-qr" },
-      { icon: Database, label: "Bulk Operations Log", to: "/admin/bulk-logs" },
+      // { icon: QrCode, label: "Wallet QR Upload", to: "wallet-qr" },
+      { icon: Database, label: "Bulk Operations Log", to: "bulk-logs" },
     ],
   },
   // {
@@ -124,12 +158,12 @@ export const ADMIN_MENU = [
   //     {
   //       icon: LayoutDashboard,
   //       label: "Book Management",
-  //       to: "/admin/book-management",
+  //       to: "book-management",
   //       children: [
-  //         { label: "A Book Management", to: "/admin/book-management/a-book" },
-  //         { label: "B Book Management", to: "/admin/book-management/b-book" },
-  //         { label: "Combined Book", to: "/admin/book-management/combined" },
-  //         { label: "Liquidity Pool Report", to: "/admin/book-management/liquidity-pool" },
+  //         { label: "A Book Management", to: "book-management/a-book" },
+  //         { label: "B Book Management", to: "book-management/b-book" },
+  //         { label: "Combined Book", to: "book-management/combined" },
+  //         { label: "Liquidity Pool Report", to: "book-management/liquidity-pool" },
   //       ],
   //     },
   //   ],
@@ -141,19 +175,18 @@ export const ADMIN_MENU = [
   // {
   //   label: "REPORTS",
   //   items: [
-  //     { icon: BarChart3, label: "Book PnL", to: "/admin/book-pnl" },
-  //     { icon: Calculator, label: "Profit & Loss", to: "/admin/finance" },
-  //     { icon: FileText, label: "LP Statement", to: "/admin/lp-statement" },
-  //     { icon: ClipboardList, label: "Partner Report", to: "/admin/ib-dashboard" },
+  //     { icon: BarChart3, label: "Book PnL", to: "book-pnl" },
+  //     { icon: Calculator, label: "Profit & Loss", to: "finance" },
+  //     { icon: FileText, label: "LP Statement", to: "lp-statement" },
+  //     { icon: ClipboardList, label: "Partner Report", to: "ib-dashboard" },
   //   ],
   // },
   {
     label: "SYSTEM",
     items: [
-      // { icon: ServerCog, label: "MT5 Connection", to: "/admin/mt5-connection" },
-      { icon: ShieldCheck, label: "Roles", to: "/admin/roles" },
-      { icon: KeySquare, label: "Assign Roles", to: "/admin/assign-roles" },
-      { icon: UserCog, label: "Admin Profile", to: "/admin/profile" },
+      // { icon: ServerCog, label: "MT5 Connection", to: "mt5-connection" },
+      { icon: KeySquare, label: "Assign Roles", to: "assign-roles" },
+      { icon: UserCog, label: "Admin Profile", to: "profile" },
       { icon: Settings, label: "Logout", to: "/logout" },
     ],
   },

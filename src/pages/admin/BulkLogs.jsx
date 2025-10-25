@@ -46,7 +46,10 @@ export default function BulkLogs() {
       ...(filters.search ? { search: filters.search } : {}),
     });
 
-    fetch(`${BASE}/admin/activity-logs?${params.toString()}`)
+    const token = localStorage.getItem('adminToken');
+    fetch(`${BASE}/admin/activity-logs?${params.toString()}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(r => r.json())
       .then(data => {
         if (stop) return;
@@ -100,36 +103,43 @@ export default function BulkLogs() {
   if (error) return <div className="rounded-xl bg-white border border-rose-200 text-rose-700 p-4">{error}</div>;
 
   return (
-    <div className="space-y-6">
-      {/* Page Title */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">All Operation Logs</h1>
-        <p className="text-gray-600 mt-1">Monitor all CRM activities and operations</p>
-      </div>
+    <div className="min-h-screen p-3 sm:p-4 md:p-6">
+      <div className="w-full space-y-4 sm:space-y-6">
+        {/* Page Title */}
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">All Operation Logs</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Monitor all CRM activities and operations</p>
+        </div>
 
-      {/* Cards for Recent Activities */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        {/* Cards for Recent Activities */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
         {/* Recent Deposits */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center mb-4">
-            <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-            <h3 className="text-lg font-semibold text-gray-900">Recent Deposits</h3>
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+          <div className="flex items-center mb-3 sm:mb-4">
+            <div className="w-3 h-3 bg-blue-500 rounded-full mr-2 flex-shrink-0"></div>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">Recent Deposits</h3>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {recentDeposits.length > 0 ? recentDeposits.map((item, index) => (
               <div key={index} className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">{item.user}</div>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">{item.user}</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString()} • MTS: {item.mts}
+                      <div className="hidden sm:block">
+                        {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString()} • MTS: {item.mts}
+                      </div>
+                      <div className="sm:hidden">
+                        <div>{new Date(item.time).toLocaleDateString()}</div>
+                        <div>MTS: {item.mts}</div>
+                      </div>
                     </div>
                     {item.details && item.details !== '-' && (
-                      <div className="text-xs text-gray-400 mt-1">Txn: {item.details}</div>
+                      <div className="text-xs text-gray-400 mt-1 truncate">Txn: {item.details}</div>
                     )}
                   </div>
-                  <div className="text-right ml-4">
-                    <div className="text-sm font-semibold text-gray-900">{fmtAmount(item.amount)}</div>
+                  <div className="flex flex-col sm:items-end gap-1">
+                    <div className="text-xs sm:text-sm font-semibold text-gray-900">{fmtAmount(item.amount)}</div>
                     <Badge tone={item.status === 'Approved' ? 'green' : item.status === 'Pending' ? 'amber' : 'red'}>
                       {item.status.toLowerCase()}
                     </Badge>
@@ -137,36 +147,42 @@ export default function BulkLogs() {
                 </div>
               </div>
             )) : (
-              <div className="text-sm text-gray-500">No recent deposits</div>
+              <div className="text-xs sm:text-sm text-gray-500">No recent deposits</div>
             )}
           </div>
-          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+          <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <span className="text-xs text-gray-500">Showing last 5 results</span>
-            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">View all</button>
+            <button className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium">View all</button>
           </div>
         </div>
 
         {/* Recent Withdrawals */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center mb-4">
-            <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-            <h3 className="text-lg font-semibold text-gray-900">Recent Withdrawals</h3>
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+          <div className="flex items-center mb-3 sm:mb-4">
+            <div className="w-3 h-3 bg-red-500 rounded-full mr-2 flex-shrink-0"></div>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">Recent Withdrawals</h3>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {recentWithdrawals.length > 0 ? recentWithdrawals.map((item, index) => (
               <div key={index} className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">{item.user}</div>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">{item.user}</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString()} • MTS: {item.mts}
+                      <div className="hidden sm:block">
+                        {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString()} • MTS: {item.mts}
+                      </div>
+                      <div className="sm:hidden">
+                        <div>{new Date(item.time).toLocaleDateString()}</div>
+                        <div>MTS: {item.mts}</div>
+                      </div>
                     </div>
                     {item.details && item.details !== '-' && (
-                      <div className="text-xs text-gray-400 mt-1">Txn: {item.details}</div>
+                      <div className="text-xs text-gray-400 mt-1 truncate">Txn: {item.details}</div>
                     )}
                   </div>
-                  <div className="text-right ml-4">
-                    <div className="text-sm font-semibold text-gray-900">{fmtAmount(item.amount)}</div>
+                  <div className="flex flex-col sm:items-end gap-1">
+                    <div className="text-xs sm:text-sm font-semibold text-gray-900">{fmtAmount(item.amount)}</div>
                     <Badge tone={item.status === 'Approved' ? 'green' : item.status === 'Pending' ? 'amber' : 'red'}>
                       {item.status.toLowerCase()}
                     </Badge>
@@ -174,55 +190,61 @@ export default function BulkLogs() {
                 </div>
               </div>
             )) : (
-              <div className="text-sm text-gray-500">No recent withdrawals</div>
+              <div className="text-xs sm:text-sm text-gray-500">No recent withdrawals</div>
             )}
           </div>
-          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+          <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <span className="text-xs text-gray-500">Showing last 5 results</span>
-            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">View all</button>
+            <button className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium">View all</button>
           </div>
         </div>
 
         {/* Recent Accounts Opened */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center mb-4">
-            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-            <h3 className="text-lg font-semibold text-gray-900">Recent Accounts Opened</h3>
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+          <div className="flex items-center mb-3 sm:mb-4">
+            <div className="w-3 h-3 bg-green-500 rounded-full mr-2 flex-shrink-0"></div>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">Recent Accounts Opened</h3>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {recentAccounts.length > 0 ? recentAccounts.map((item, index) => (
               <div key={index} className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">{item.user}</div>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">{item.user}</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString()}
+                      <div className="hidden sm:block">
+                        {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString()}
+                      </div>
+                      <div className="sm:hidden">
+                        <div>{new Date(item.time).toLocaleDateString()}</div>
+                        <div>{new Date(item.time).toLocaleTimeString()}</div>
+                      </div>
                     </div>
                     <div className="text-xs text-gray-500">MTS: {item.mts}</div>
                   </div>
-                  <div className="text-right ml-4">
+                  <div className="flex flex-col sm:items-end gap-1">
                     <Badge tone="green">Opened</Badge>
                   </div>
                 </div>
               </div>
             )) : (
-              <div className="text-sm text-gray-500">No recent accounts</div>
+              <div className="text-xs sm:text-sm text-gray-500">No recent accounts</div>
             )}
           </div>
-          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+          <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <span className="text-xs text-gray-500">Showing last 5 results</span>
-            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">View all</button>
+            <button className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium">View all</button>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           <select
             value={filters.type}
             onChange={(e) => handleFilterChange({ type: e.target.value })}
-            className="rounded-md border border-gray-300 h-10 px-3"
+            className="rounded-md border border-gray-300 h-9 sm:h-10 px-2 sm:px-3 text-sm"
           >
             <option value="all">All Types</option>
             <option value="deposit">Deposit</option>
@@ -232,7 +254,7 @@ export default function BulkLogs() {
           <select
             value={filters.status}
             onChange={(e) => handleFilterChange({ status: e.target.value })}
-            className="rounded-md border border-gray-300 h-10 px-3"
+            className="rounded-md border border-gray-300 h-9 sm:h-10 px-2 sm:px-3 text-sm"
           >
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
@@ -244,35 +266,36 @@ export default function BulkLogs() {
             type="date"
             value={filters.from}
             onChange={(e) => handleFilterChange({ from: e.target.value })}
-            className="rounded-md border border-gray-300 h-10 px-3"
+            className="rounded-md border border-gray-300 h-9 sm:h-10 px-2 sm:px-3 text-sm"
             placeholder="From"
           />
           <input
             type="date"
             value={filters.to}
             onChange={(e) => handleFilterChange({ to: e.target.value })}
-            className="rounded-md border border-gray-300 h-10 px-3"
+            className="rounded-md border border-gray-300 h-9 sm:h-10 px-2 sm:px-3 text-sm"
             placeholder="To"
           />
           <input
             type="text"
             value={filters.search}
             onChange={(e) => handleFilterChange({ search: e.target.value })}
-            className="rounded-md border border-gray-300 h-10 px-3"
+            className="rounded-md border border-gray-300 h-9 sm:h-10 px-2 sm:px-3 text-sm"
             placeholder="Search email / MTS / txn"
           />
         </div>
       </div>
 
-      {/* Table */}
-      <ProTable
-        title="Activity Logs"
-        rows={rows}
-        columns={columns}
-        filters={tableFilters}
-        searchPlaceholder="Search user, MTS, details…"
-        pageSize={10}
-      />
+        {/* Table */}
+        <ProTable
+          title="Activity Logs"
+          rows={rows}
+          columns={columns}
+          filters={tableFilters}
+          searchPlaceholder="Search user, MTS, details…"
+          pageSize={10}
+        />
+      </div>
     </div>
   );
 }

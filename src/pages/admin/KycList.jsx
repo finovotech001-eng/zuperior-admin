@@ -20,7 +20,10 @@ export default function KycList(){
   async function load(){
     setLoading(true); setErr("");
     try{
-      const r = await fetch(`${BASE}/admin/kyc?limit=500`);
+      const token = localStorage.getItem('adminToken');
+      const r = await fetch(`${BASE}/admin/kyc?limit=500`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await r.json();
       if(!data?.ok) throw new Error(data?.error||'Failed');
       const items = data.items || [];
@@ -46,7 +49,12 @@ export default function KycList(){
   useEffect(()=>{ load(); },[]);
 
   async function applyChange(id, data){
-    const r = await fetch(`${BASE}/admin/kyc/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+    const token = localStorage.getItem('adminToken');
+    const r = await fetch(`${BASE}/admin/kyc/${id}`, { 
+      method:'PATCH', 
+      headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${token}`}, 
+      body: JSON.stringify(data)
+    });
     const j = await r.json();
     if(!j?.ok) throw new Error(j?.error||'Failed');
   }
@@ -61,7 +69,12 @@ export default function KycList(){
           const fd = new FormData();
           if (docFile) fd.append('document', docFile);
           if (addrFile) fd.append('address', addrFile);
-          const up = await fetch(`${BASE}/admin/uploads`, { method:'POST', body: fd });
+          const token = localStorage.getItem('adminToken');
+          const up = await fetch(`${BASE}/admin/uploads`, { 
+            method:'POST', 
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: fd 
+          });
           const uj = await up.json();
           if (uj?.ok) {
             documentReference = uj.files?.document || undefined;

@@ -26,7 +26,10 @@ export default function DepositsApproved() {
     let stop = false;
     setLoading(true);
     setError("");
-    fetch(`${BASE}/admin/deposits?status=approved&limit=10000`)
+    const token = localStorage.getItem('adminToken');
+    fetch(`${BASE}/admin/deposits?status=approved&limit=10000`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(r => r.json())
       .then(data => {
         if (stop) return;

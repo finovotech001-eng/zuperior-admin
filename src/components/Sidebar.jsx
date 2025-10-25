@@ -1,7 +1,7 @@
 // src/components/Sidebar.jsx
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU } from "./SidebarMenuConfig.js";
+import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU, getMenuForRole } from "./SidebarMenuConfig.js";
 import { ChevronDown } from "lucide-react";
 
 /* ---------- Section ---------- */
@@ -113,13 +113,27 @@ function Header({ role }) {
 /* ---------- Sidebar Root ---------- */
 export default function Sidebar({
   role = "superadmin",
+  adminRole = "superadmin",
   pathname = "/",
   open = false,
   onClose = () => {},
   className = "",
 }) {
-  const MENU =
-    role === "superadmin" ? SUPERADMIN_MENU : role === "admin" ? ADMIN_MENU : USER_MENU;
+  const MENU = useMemo(() => {
+    console.log('Sidebar - role:', role, 'adminRole:', adminRole);
+    // Check if user is superadmin by adminRole
+    if (adminRole === "superadmin") {
+      // Super admin gets full ADMIN_MENU without filtering
+      console.log('Using full ADMIN_MENU for superadmin');
+      return ADMIN_MENU;
+    } else if (role === "admin") {
+      // Use role-based filtering for admin menu
+      console.log('Using filtered menu for role:', adminRole);
+      return getMenuForRole(adminRole);
+    } else {
+      return USER_MENU;
+    }
+  }, [role, adminRole]);
 
   // Force light mode
   const isDark = false;

@@ -53,7 +53,10 @@ export default function SendEmails() {
       ...(filters.search ? { search: filters.search } : {}),
     });
 
-    fetch(`/api/admin/users/filtered?${params.toString()}`)
+    const token = localStorage.getItem('adminToken');
+    fetch(`/api/admin/users/filtered?${params.toString()}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(r => r.json())
       .then(data => {
         if (stop) return;

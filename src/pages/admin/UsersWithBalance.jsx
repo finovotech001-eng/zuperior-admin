@@ -26,7 +26,10 @@ export default function UsersWithBalance() {
     let stop = false;
     setLoading(true);
     setError("");
-    fetch(`/api/admin/users/with-balance?limit=500`)
+    const token = localStorage.getItem('adminToken');
+    fetch(`/api/admin/users/with-balance?limit=500`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(r => r.json())
       .then(data => {
         if (stop) return;
