@@ -71,12 +71,14 @@ const ADMIN_FEATURES = {
     { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
     { name: 'Manage Users', icon: Users, path: 'users' },
     { name: 'KYC Verifications', icon: Shield, path: 'kyc' },
+    { name: 'Support Tickets', icon: MessageSquare, path: 'support' },
     { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' }
   ],
   support: [
     { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
     { name: 'Manage Users', icon: Users, path: 'users' },
-    { name: 'KYC Verifications', icon: Shield, path: 'kyc' }
+    { name: 'KYC Verifications', icon: Shield, path: 'kyc' },
+    { name: 'Support Tickets', icon: MessageSquare, path: 'support' }
   ],
   analyst: [
     { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },

@@ -28,6 +28,8 @@ import WithdrawalsAll from "../pages/admin/WithdrawalsAll.jsx";
 import BulkLogs from "../pages/admin/BulkLogs.jsx";
 import Logout from "../pages/admin/Logout.jsx";
 import PaymentDetails from "../pages/admin/PaymentDetails.jsx";
+import SupportTicketsList from "../pages/admin/SupportTicketsList.jsx";
+import SupportTicketView from "../pages/admin/SupportTicketView.jsx";
 /** Admin Dashboard */
 
 export default [
@@ -120,6 +122,12 @@ export default [
   { path: "payment-gateways/manual",       element: <PaymentGatewaysManual /> },
   { path: "payment-details",               element: <PaymentDetails /> },
   { path: "usdt-gateways/manual",       element: <EmptyState title="USDT Gateway" subtitle="USDT Gateway Integration" /> },
+
+  // Support Tickets
+  { path: "support/open",    element: <SupportTicketsList status="opened" /> },
+  { path: "support/pending", element: <SupportTicketsList status="pending" /> },
+  { path: "support/closed",  element: <SupportTicketsList status="closed" /> },
+  { path: "support/tickets/:id", element: <SupportTicketView /> },
 
   { path: "wallet-qr",          element: <EmptyState title="Wallet QR Upload" subtitle="Upload deposit QR codes" /> },
   { path: "bulk-logs",          element: <BulkLogs /> },

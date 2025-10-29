@@ -101,6 +101,21 @@ export const ADMIN_MENU = [
     ],
   },
   {
+    label: "SUPPORT",
+    items: [
+      {
+        icon: Headphones,
+        label: "Support Tickets",
+        to: "support/open",
+        children: [
+          { label: "Opened Tickets", to: "support/open" },
+          { label: "Pending Tickets", to: "support/pending" },
+          { label: "Closed Tickets", to: "support/closed" },
+        ],
+      },
+    ],
+  },
+  {
     label: "MT5 MANAGEMENT",
     items: [
       {
