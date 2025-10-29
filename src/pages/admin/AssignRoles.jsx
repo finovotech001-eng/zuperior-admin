@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { ROLE_FEATURES } from "../../components/SidebarMenuConfig.js";
 import Swal from "sweetalert2";
@@ -8,7 +9,6 @@ import {
   Users, 
   Shield, 
   Plus, 
-  Edit, 
   Save, 
   X, 
   Eye,
@@ -31,6 +31,7 @@ import {
   Lock,
   Unlock
 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 const ROLE_OPTIONS = [
   { value: 'superadmin', label: 'Super Admin', color: 'bg-red-100 text-red-800', description: 'Full access to all features' },
@@ -50,6 +51,7 @@ const ADMIN_FEATURES = {
     { name: 'Manage Deposits', icon: CreditCard, path: 'deposits' },
     { name: 'Manage Withdrawals', icon: DollarSign, path: 'withdrawals' },
     { name: 'Payment Gateways', icon: CreditCard, path: 'payment-gateways' },
+    { name: 'Payment Details', icon: CreditCard, path: 'payment-details' },
     { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' },
     { name: 'Assign Roles', icon: Settings, path: 'assign-roles' },
     { name: 'Admin Profile', icon: UserCheck, path: 'profile' }
@@ -62,6 +64,7 @@ const ADMIN_FEATURES = {
     { name: 'Manage Deposits', icon: CreditCard, path: 'deposits' },
     { name: 'Manage Withdrawals', icon: DollarSign, path: 'withdrawals' },
     { name: 'Payment Gateways', icon: CreditCard, path: 'payment-gateways' },
+    { name: 'Payment Details', icon: CreditCard, path: 'payment-details' },
     { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' }
   ],
   moderator: [
@@ -134,7 +137,7 @@ export default function AssignRoles() {
     }
   `;
 
-  const [roles, setRoles] = useState([]);
+  const [roles, setRoles] = useState([]); // roles from DB
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -144,7 +147,9 @@ export default function AssignRoles() {
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [selectedFeatures, setSelectedFeatures] = useState([]);
   const [showRoleDropdown, setShowRoleDropdown] = useState(null);
+  const [dropdownAnchor, setDropdownAnchor] = useState(null); // { id, rect }
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     newPassword: '',
     confirmPassword: ''
@@ -163,8 +168,34 @@ export default function AssignRoles() {
     features: []
   });
 
+  // Build a global feature lookup from ADMIN_FEATURES
+  const FEATURE_MAP = useMemo(() => {
+    const map = {};
+    Object.values(ADMIN_FEATURES).forEach(list => {
+      list.forEach(f => { if (f?.path) map[f.path] = f; });
+    });
+    return map;
+  }, []);
+
+  const findCustomRole = (name) => {
+    if (!name) return null;
+    return roles.find(r => (r.name || '').toLowerCase() === String(name).toLowerCase()) || null;
+  };
+
+  const getFeaturesForAdminUser = (adminUser) => {
+    // If a matching custom role exists, use its permissions.features
+    const custom = findCustomRole(adminUser?.admin_role);
+    const customFeatures = custom?.permissions?.features;
+    if (Array.isArray(customFeatures) && customFeatures.length) {
+      return customFeatures.map(p => FEATURE_MAP[p] || { name: p, icon: Settings, path: p });
+    }
+    // Fallback to built-in role mapping
+    return getFeaturesForRole(adminUser?.admin_role);
+  };
+
   useEffect(() => {
     fetchAdmins();
+    fetchRoles();
   }, []);
 
   const fetchAdmins = async () => {
@@ -187,6 +218,19 @@ export default function AssignRoles() {
       setError('Failed to fetch admins');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${BASE}/admin/roles`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data?.ok) setRoles(data.roles || []);
+    } catch (err) {
+      // ignore silently; UI can work without roles
     }
   };
 
@@ -429,6 +473,32 @@ export default function AssignRoles() {
     }
   };
 
+  const handleDeleteAdmin = async (adminUser) => {
+    if (adminUser.admin_role === 'superadmin') return;
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: `Delete admin “${adminUser.username}”?`,
+      text: 'This action cannot be undone.',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Delete',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${BASE}/admin/admins/${adminUser.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to delete admin');
+      setAdmins(prev => prev.filter(a => a.id !== adminUser.id));
+      Swal.fire({ icon: 'success', title: 'Admin deleted', timer: 1500, showConfirmButton: false });
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Delete failed', text: err.message || 'Unable to delete admin' });
+    }
+  };
+
   const handleCreateRole = async (e) => {
     e.preventDefault();
     
@@ -471,15 +541,8 @@ export default function AssignRoles() {
       
       if (response.ok) {
         const data = await response.json();
-        // Add the new role to ROLE_OPTIONS
-        const newRoleOption = {
-          value: data.role.name.toLowerCase().replace(/\s+/g, '_'),
-          label: data.role.name,
-          color: 'bg-indigo-100 text-indigo-800',
-          description: data.role.description
-        };
-        
-        // Update the role options (you might want to store this in state)
+        // Update roles list
+        setRoles(prev => [data.role, ...prev]);
         setShowCreateRoleModal(false);
         setNewRole({
           name: "",
@@ -496,9 +559,7 @@ export default function AssignRoles() {
           timer: 2000,
           showConfirmButton: false
         });
-        
-        // Refresh the page to show the new role
-        window.location.reload();
+        await fetchRoles();
       } else {
         const data = await response.json();
         const errorMessage = data.error || 'Failed to create role';
@@ -522,8 +583,42 @@ export default function AssignRoles() {
     }
   };
 
-  const handleRoleDropdownToggle = (adminId) => {
-    setShowRoleDropdown(showRoleDropdown === adminId ? null : adminId);
+  const handleDeleteRole = async (role) => {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: `Delete role “${role.name}”?`,
+      text: 'This action cannot be undone.',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Delete',
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${BASE}/admin/roles/${role.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to delete role');
+      setRoles(prev => prev.filter(r => r.id !== role.id));
+      Swal.fire({ icon: 'success', title: 'Role deleted', timer: 1500, showConfirmButton: false });
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Delete failed', text: err.message || 'Unable to delete role' });
+    }
+  };
+
+  const handleRoleDropdownToggle = (adminId, event) => {
+    const isOpen = showRoleDropdown === adminId;
+    if (isOpen) {
+      setShowRoleDropdown(null);
+      setDropdownAnchor(null);
+      return;
+    }
+    const rect = event?.currentTarget?.getBoundingClientRect?.();
+    setDropdownAnchor(rect ? { id: adminId, rect } : null);
+    setShowRoleDropdown(adminId);
   };
 
   const handleRoleSelect = async (adminId, newRole) => {
@@ -532,8 +627,9 @@ export default function AssignRoles() {
   };
 
   const handleClickOutside = (event) => {
-    if (!event.target.closest('.role-dropdown')) {
+    if (!event.target.closest('.role-dropdown') && !event.target.closest('.role-dropdown-portal')) {
       setShowRoleDropdown(null);
+      setDropdownAnchor(null);
     }
   };
 
@@ -631,8 +727,51 @@ export default function AssignRoles() {
           ))}
         </div>
 
+        {/* Roles Table */}
+        {roles.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-visible mb-8">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Custom Roles</h2>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">Manage roles saved in the database</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Features</th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {roles.map(r => {
+                    const features = r.permissions?.features || [];
+                    return (
+                      <tr key={r.id} className="hover:bg-gray-50">
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{r.name}</td>
+                        <td className="px-3 sm:px-6 py-3 text-sm text-gray-600">{r.description || '-'}</td>
+                        <td className="px-3 sm:px-6 py-3 text-sm text-gray-600">{features.length} feature{features.length === 1 ? '' : 's'}</td>
+                        <td className="px-3 sm:px-6 py-3 text-sm">
+                          <div className="flex items-end gap-6">
+                            <button onClick={() => handleDeleteRole(r)} className="flex flex-col items-center text-red-600 hover:text-red-700">
+                              <Trash2 className="h-4 w-4" />
+                              <small className="text-[10px] leading-3 mt-1">Delete</small>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Admins Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {/* Use overflow-visible so dropdowns can render above rows/cards */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-visible">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Admin Users</h2>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Manage admin accounts and their roles</p>
@@ -684,42 +823,60 @@ export default function AssignRoles() {
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="role-dropdown">
                           <button
-                            onClick={() => handleRoleDropdownToggle(adminUser.id)}
+                            onClick={(e) => handleRoleDropdownToggle(adminUser.id, e)}
                             className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-900 hover:text-purple-600 transition-colors"
                           >
                             <span className={`px-2 py-1 rounded-full text-xs ${role?.color || 'bg-gray-100 text-gray-800'}`}>
                               {role?.label || adminUser.admin_role}
                             </span>
-                            <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                           </button>
                           
-                          {showRoleDropdown === adminUser.id && (
-                            <div className="role-dropdown-menu">
-                              {ROLE_OPTIONS.filter(role => role.value !== 'superadmin').map((roleOption) => (
-                                <div
-                                  key={roleOption.value}
-                                  onClick={() => handleRoleSelect(adminUser.id, roleOption.value)}
-                                  className="role-dropdown-option flex items-center gap-2"
-                                >
-                                  <span className={`px-2 py-1 rounded-full text-xs ${roleOption.color}`}>
-                                    {roleOption.label}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
+                          {showRoleDropdown === adminUser.id && dropdownAnchor && dropdownAnchor.id === adminUser.id && createPortal(
+                            (
+                              <div
+                                className="role-dropdown-menu role-dropdown-portal"
+                                style={{
+                                  position: 'fixed',
+                                  top: (dropdownAnchor.rect.bottom + 8) + 'px',
+                                  left: dropdownAnchor.rect.left + 'px',
+                                  width: Math.max(180, dropdownAnchor.rect.width) + 'px',
+                                  zIndex: 1000,
+                                }}
+                              >
+                                {[
+                                  // built-in roles first (except superadmin)
+                                  ...ROLE_OPTIONS.filter(r => r.value !== 'superadmin'),
+                                  // then custom roles from DB (avoid duplicates by value/name)
+                                  ...roles
+                                    .filter(r => !['superadmin','admin','moderator','support','analyst'].includes(r.name.toLowerCase()))
+                                    .map(r => ({ value: r.name, label: r.name, color: 'bg-indigo-100 text-indigo-800' })),
+                                ].map((roleOption) => (
+                                  <div
+                                    key={roleOption.value}
+                                    onClick={() => handleRoleSelect(adminUser.id, roleOption.value)}
+                                    className="role-dropdown-option flex items-center gap-2"
+                                  >
+                                    <span className={`px-2 py-1 rounded-full text-xs ${roleOption.color}`}>
+                                      {roleOption.label}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ),
+                            document.body
                           )}
                         </div>
                       </td>
                       <td className="hidden sm:table-cell px-3 sm:px-6 py-4">
                         <div className="flex flex-wrap gap-1">
-                          {getFeaturesForRole(adminUser.admin_role).slice(0, 2).map((feature, index) => (
+                          {getFeaturesForAdminUser(adminUser).slice(0, 2).map((feature, index) => (
                             <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
                               <feature.icon className="h-3 w-3" />
                               {feature.name}
                             </span>
                           ))}
-                          {getFeaturesForRole(adminUser.admin_role).length > 2 && (
-                            <span className="text-xs text-gray-500">+{getFeaturesForRole(adminUser.admin_role).length - 2} more</span>
+                          {getFeaturesForAdminUser(adminUser).length > 2 && (
+                            <span className="text-xs text-gray-500">+{getFeaturesForAdminUser(adminUser).length - 2} more</span>
                           )}
                         </div>
                       </td>
@@ -733,41 +890,51 @@ export default function AssignRoles() {
                         {adminUser.last_login ? new Date(adminUser.last_login).toLocaleDateString() : 'Never'}
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-1 sm:gap-2">
-                          {adminUser.admin_role === 'superadmin' ? (
-                            <span className="text-xs text-gray-500">Super Admin</span>
-                          ) : (
-                            <button
-                              onClick={() => setEditingAdmin(adminUser.id)}
-                              className="p-1.5 sm:p-2 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded-lg transition-colors"
-                              title="Edit Role"
-                            >
-                              <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
-                            </button>
+                        <div className="flex items-end gap-4">
+                          {adminUser.admin_role === 'superadmin' && (
+                            <div className="flex flex-col items-center text-gray-400">
+                              <Lock className="h-4 w-4" />
+                              <small className="text-[10px] leading-3 mt-1">Protected</small>
+                            </div>
                           )}
+
                           <button 
                             onClick={() => handleFeatureSelection(adminUser)}
-                            className="p-1.5 sm:p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-colors"
+                            className="flex flex-col items-center text-green-600 hover:text-green-800"
                             title="Customize Features"
                           >
-                            <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <Settings className="h-4 w-4" />
+                            <small className="text-[10px] leading-3 mt-1">Features</small>
                           </button>
+
                           <button 
-                            className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
+                            onClick={() => { setSelectedAdmin(adminUser); setShowViewModal(true); }}
+                            className="flex flex-col items-center text-blue-600 hover:text-blue-800"
                             title="View Details"
                           >
-                            <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <Eye className="h-4 w-4" />
+                            <small className="text-[10px] leading-3 mt-1">View</small>
                           </button>
+
                           <button 
-                            onClick={() => {
-                              setSelectedAdmin(adminUser);
-                              setShowPasswordModal(true);
-                            }}
-                            className="p-1.5 sm:p-2 text-orange-600 hover:text-orange-900 hover:bg-orange-50 rounded-lg transition-colors"
+                            onClick={() => { setSelectedAdmin(adminUser); setShowPasswordModal(true); }}
+                            className="flex flex-col items-center text-orange-600 hover:text-orange-800"
                             title="Change Password"
                           >
-                            <Lock className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <Lock className="h-4 w-4" />
+                            <small className="text-[10px] leading-3 mt-1">Password</small>
                           </button>
+
+                          {adminUser.admin_role !== 'superadmin' && (
+                            <button 
+                              onClick={() => handleDeleteAdmin(adminUser)}
+                              className="flex flex-col items-center text-red-600 hover:text-red-800"
+                              title="Delete Admin"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <small className="text-[10px] leading-3 mt-1">Delete</small>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -777,6 +944,57 @@ export default function AssignRoles() {
             </table>
           </div>
         </div>
+
+        {/* View Admin Permissions Modal */}
+        {showViewModal && selectedAdmin && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-enhanced flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Admin Permissions</h3>
+                  <p className="text-sm text-gray-600">{selectedAdmin.username} • {selectedAdmin.email}</p>
+                </div>
+                <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-4 sm:p-6">
+                <div className="mb-4">
+                  {(() => {
+                    const role = ROLE_OPTIONS.find(r => r.value === selectedAdmin.admin_role);
+                    return (
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${role?.color || 'bg-gray-100 text-gray-800'}`}>
+                        {role?.label || selectedAdmin.admin_role}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Enabled Features</h4>
+                {(() => {
+                  const features = getFeaturesForAdminUser(selectedAdmin);
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {features.map((feature, idx) => (
+                        <div key={idx} className="flex items-center gap-2 border border-gray-200 rounded-lg p-2">
+                          <feature.icon className="h-4 w-4 text-gray-600" />
+                          <span className="text-sm text-gray-800">{feature.name}</span>
+                        </div>
+                      ))}
+                      {features.length === 0 && (
+                        <div className="text-sm text-gray-500">No features enabled.</div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="flex justify-end mt-6">
+                  <button onClick={() => setShowViewModal(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-800">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Create Admin Modal */}
         {showCreateModal && (
@@ -843,9 +1061,16 @@ export default function AssignRoles() {
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                         required
                       >
+                        {/* Built-in roles (except superadmin) */}
                         {ROLE_OPTIONS.filter(role => role.value !== 'superadmin').map((role) => (
                           <option key={role.value} value={role.value}>{role.label}</option>
                         ))}
+                        {/* Custom roles from DB */}
+                        {roles
+                          .filter(r => !['superadmin','admin','moderator','support','analyst'].includes(r.name.toLowerCase()))
+                          .map(r => (
+                            <option key={r.id} value={r.name}>{r.name}</option>
+                          ))}
                       </select>
                     </div>
                   </div>

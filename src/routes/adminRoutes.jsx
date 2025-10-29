@@ -27,6 +27,7 @@ import WithdrawalsRejected from "../pages/admin/WithdrawalsRejected.jsx";
 import WithdrawalsAll from "../pages/admin/WithdrawalsAll.jsx";
 import BulkLogs from "../pages/admin/BulkLogs.jsx";
 import Logout from "../pages/admin/Logout.jsx";
+import PaymentDetails from "../pages/admin/PaymentDetails.jsx";
 /** Admin Dashboard */
 
 export default [
@@ -117,6 +118,7 @@ export default [
   { path: "payment-gateways",              element: <EmptyState title="Payment Gateways" subtitle="Automatic & manual gateways" /> },
   { path: "payment-gateways/automatic",    element: <PaymentGatewaysAutomatic /> },
   { path: "payment-gateways/manual",       element: <PaymentGatewaysManual /> },
+  { path: "payment-details",               element: <PaymentDetails /> },
   { path: "usdt-gateways/manual",       element: <EmptyState title="USDT Gateway" subtitle="USDT Gateway Integration" /> },
 
   { path: "wallet-qr",          element: <EmptyState title="Wallet QR Upload" subtitle="Upload deposit QR codes" /> },

@@ -9,11 +9,11 @@ import {
 export const ROLE_FEATURES = {
   superadmin: [
     'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
-    'payment-gateways', 'bulk-logs', 'assign-roles', 'profile'
+    'payment-gateways', 'payment-details', 'bulk-logs', 'assign-roles', 'profile'
   ],
   admin: [
     'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
-    'payment-gateways', 'bulk-logs'
+    'payment-gateways', 'payment-details', 'bulk-logs'
   ],
   moderator: [
     'dashboard', 'users', 'kyc', 'bulk-logs'
@@ -149,6 +149,7 @@ export const ADMIN_MENU = [
           { label: "Manual Gateways", to: "payment-gateways/manual" },
         ],
       },
+      { icon: CreditCard, label: "Payment Details", to: "payment-details" },
       // { icon: QrCode, label: "Wallet QR Upload", to: "wallet-qr" },
       { icon: Database, label: "Bulk Operations Log", to: "bulk-logs" },
     ],
