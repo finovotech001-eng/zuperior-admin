@@ -77,7 +77,10 @@ export default function UsersWithBalance() {
         if (stop) return;
         if (!data?.ok) throw new Error(data?.error || "Failed to load");
         const items = Array.isArray(data.items) ? data.items : [];
-        setRows(items.map(u => ({
+        // Filter users to only show those with balance > $1
+        const filteredItems = items.filter(u => (u.totalBalance || 0) > 1);
+        console.log(`📊 Users with Balance Filter: ${items.length} total users, ${filteredItems.length} users with balance > $1`);
+        setRows(filteredItems.map(u => ({
           id: u.id,
           name: u.name || "-",
           email: u.email,
@@ -281,7 +284,7 @@ export default function UsersWithBalance() {
   return (
     <>
       <ProTable
-        title="Users with MT5 Balance"
+        title="Users with MT5 Balance (>$1)"
         rows={rows}
         columns={columns}
         filters={filters}

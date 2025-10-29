@@ -170,8 +170,16 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
+      // Check if response is ok
+      if (!r.ok) {
+        const errorData = await r.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${r.status} ${r.statusText}`);
+      }
+      
       const data = await r.json();
-      if (!data?.ok) throw new Error(data?.error || 'Failed');
+      if (!data?.ok) throw new Error(data?.error || 'Delete failed');
+      
       setRows(list => list.filter(it => it.id!==row.id));
       setConfirmDel(null);
       
@@ -179,17 +187,20 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
       Swal.fire({
         icon: 'success',
         title: 'Success!',
-        text: 'User deleted successfully',
+        text: data.message || 'User deleted successfully',
         timer: 2000,
         showConfirmButton: false
       });
     } catch (e) {
-      console.error(e);
+      console.error('Delete user error:', e);
       setConfirmDel(null);
+      
+      // Show error message with more details
       Swal.fire({
         icon: 'error',
-        title: 'Error!',
-        text: e.message || String(e)
+        title: 'Delete Failed!',
+        text: e.message || 'Failed to delete user. Please try again.',
+        confirmButtonText: 'OK'
       });
     }
   }
