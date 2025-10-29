@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import ProTable from "../../components/ProTable.jsx";
 import Modal from "../../components/Modal.jsx";
-import { ShieldCheck, ShieldX } from "lucide-react";
+import { ShieldCheck, ShieldX, CheckCircle, XCircle } from "lucide-react";
+import Swal from "sweetalert2";
 
 function fmt(v){ if(!v) return "-"; const d=new Date(v); return isNaN(d)?"-":d.toLocaleString(); }
 
@@ -86,25 +87,101 @@ export default function KycList(){
       }
 
       await applyChange(row.id, {
-        verificationStatus: next ? 'Verified' : 'Pending',
+        verificationStatus: next ? 'Approved' : 'Pending',
         ...(documentReference ? { documentReference } : {}),
         ...(addressReference ? { addressReference } : {}),
       });
-      setRows(list=> list.map(it=> it.id===row.id?{...it, verificationStatus: next?'Verified':'Pending', documentReference: documentReference||it.documentReference, addressReference: addressReference||it.addressReference}:it));
+      setRows(list=> list.map(it=> it.id===row.id?{...it, verificationStatus: next?'Approved':'Pending', documentReference: documentReference||it.documentReference, addressReference: addressReference||it.addressReference}:it));
       setConfirm(null);
       setDocFile(null); setAddrFile(null); setDocLink(""); setAddrLink("");
-    }catch(e){ console.error(e); setConfirm(null); }
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: `KYC ${next ? 'approved' : 'unapproved'} successfully`,
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }catch(e){ 
+      console.error(e); 
+      setConfirm(null);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: e.message || String(e)
+      });
+    }
   }
 
   async function onToggleDoc(row){
-    try{ await applyChange(row.id, { isDocumentVerified: !row.isDocumentVerified });
+    try{ 
+      await applyChange(row.id, { isDocumentVerified: !row.isDocumentVerified });
       setRows(list=> list.map(it=> it.id===row.id?{...it, isDocumentVerified: !row.isDocumentVerified}:it));
-    }catch(e){ console.error(e); }
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: `Document ${!row.isDocumentVerified ? 'verified' : 'unverified'} successfully`,
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }catch(e){ 
+      console.error(e);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: e.message || String(e)
+      });
+    }
   }
   async function onToggleAddr(row){
-    try{ await applyChange(row.id, { isAddressVerified: !row.isAddressVerified });
+    try{ 
+      await applyChange(row.id, { isAddressVerified: !row.isAddressVerified });
       setRows(list=> list.map(it=> it.id===row.id?{...it, isAddressVerified: !row.isAddressVerified}:it));
-    }catch(e){ console.error(e); }
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: `Address ${!row.isAddressVerified ? 'verified' : 'unverified'} successfully`,
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }catch(e){ 
+      console.error(e);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: e.message || String(e)
+      });
+    }
+  }
+
+  async function onRejectKyc(row){
+    try{
+      await applyChange(row.id, {
+        verificationStatus: 'Rejected'
+      });
+      setRows(list=> list.map(it=> it.id===row.id?{...it, verificationStatus: 'Rejected'}:it));
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'KYC rejected successfully',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }catch(e){ 
+      console.error(e);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: e.message || String(e)
+      });
+    }
   }
 
   const columns = useMemo(()=>[
@@ -118,18 +195,54 @@ export default function KycList(){
     { key:'isAddressVerified', label:'Addr', render:(v, row, Badge)=> (
       <button onClick={()=>onToggleAddr(row)} className={`px-2 py-0.5 rounded-full text-xs font-medium ${v? 'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-800'}`}>{v?'Yes':'No'}</button>
     )},
-    { key:'verificationStatus', label:'Status', render:(v, row, Badge)=> (
-      <Badge tone={v==='Verified'?'green': v==='Rejected'?'red':'amber'}>{v}</Badge>
-    )},
+    { key:'verificationStatus', label:'Status', render:(v, row, Badge)=> {
+      let displayStatus = v;
+      let badgeTone = 'amber';
+      
+      if (v === 'Approved' || v === 'Verified') {
+        displayStatus = 'Verified';
+        badgeTone = 'green';
+      } else if (v === 'Rejected') {
+        displayStatus = 'Unverified';
+        badgeTone = 'red';
+      } else {
+        displayStatus = 'Unverified';
+        badgeTone = 'amber';
+      }
+      
+      return <Badge tone={badgeTone}>{displayStatus}</Badge>;
+    }},
     { key:'documentSubmittedAt', label:'Doc Submitted', render:(v,row)=> row.documentReference ? <a className="text-violet-700 hover:underline" href={row.documentReference} target="_blank" rel="noreferrer">{fmt(v)}</a> : fmt(v) },
     { key:'addressSubmittedAt', label:'Addr Submitted', render:(v,row)=> row.addressReference ? <a className="text-violet-700 hover:underline" href={row.addressReference} target="_blank" rel="noreferrer">{fmt(v)}</a> : fmt(v) },
     { key:'createdAt', label:'Created', render:fmt },
     { key:'actions', label:'Actions', sortable:false, render:(v,row)=> (
-      <div className="flex items-center gap-2">
-        <button onClick={()=>setConfirm({row, next: row.verificationStatus!=='Verified'})}
-                className="h-8 px-3 rounded-md border border-violet-200 text-violet-700 hover:bg-violet-50 inline-flex items-center gap-1">
-          {row.verificationStatus==='Verified' ? <ShieldX size={16}/> : <ShieldCheck size={16}/>} {row.verificationStatus==='Verified'?'Unverify':'Verify'}
-        </button>
+      <div className="flex items-center gap-3">
+        {row.verificationStatus === 'Approved' || row.verificationStatus === 'Verified' ? (
+          <div className="flex flex-col items-center gap-1">
+            <button onClick={()=>setConfirm({row, next: false})}
+                    className="h-8 px-3 rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50 inline-flex items-center gap-1">
+              <ShieldX size={16}/> Unapprove
+            </button>
+            <span className="text-xs text-gray-500">Unapprove</span>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col items-center gap-1">
+              <button onClick={()=>setConfirm({row, next: true})}
+                      className="h-8 px-3 rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50 inline-flex items-center gap-1">
+                <CheckCircle size={16}/> Approve
+              </button>
+              <span className="text-xs text-gray-500">Approve</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <button onClick={()=>onRejectKyc(row)}
+                      className="h-8 px-3 rounded-md border border-red-200 text-red-700 hover:bg-red-50 inline-flex items-center gap-1">
+                <XCircle size={16}/> Reject
+              </button>
+              <span className="text-xs text-gray-500">Reject</span>
+            </div>
+          </>
+        )}
       </div>
     )},
   ],[]);
@@ -138,29 +251,29 @@ export default function KycList(){
     searchKeys:['name','email','country','verificationStatus'],
   }),[]);
 
-  const verifiedRows = useMemo(() => rows.filter(r => r.verificationStatus === 'Verified'), [rows]);
-  const unverifiedRows = useMemo(() => rows.filter(r => r.verificationStatus !== 'Verified'), [rows]);
+  const verifiedRows = useMemo(() => rows.filter(r => r.verificationStatus === 'Approved' || r.verificationStatus === 'Verified'), [rows]);
+  const unverifiedRows = useMemo(() => rows.filter(r => r.verificationStatus !== 'Approved' && r.verificationStatus !== 'Verified'), [rows]);
 
   if(loading) return <div className="rounded-xl bg-white border border-gray-200 p-4">Loading KYC…</div>;
   if(err) return <div className="rounded-xl bg-white border border-rose-200 text-rose-700 p-4">{err}</div>;
 
   return (
     <>
-      <ProTable title="Unverified KYC (Pending)" rows={unverifiedRows} columns={columns} filters={filters}
+      <ProTable title="Unverified KYC" rows={unverifiedRows} columns={columns} filters={filters}
                 searchPlaceholder="Search name / email / country / status…" pageSize={10} />
 
       {/* Verified-only table */}
       <div className="mt-8">
-        <ProTable title="Verified KYC (Approved)" rows={verifiedRows} columns={columns} filters={{ searchKeys:['name','email','country'] }}
+        <ProTable title="Verified KYC" rows={verifiedRows} columns={columns} filters={{ searchKeys:['name','email','country'] }}
                   searchPlaceholder="Search verified name / email / country…" pageSize={10} />
       </div>
 
-      {/* Verify Modal with optional proof uploads/links */}
+      {/* Approve Modal with optional proof uploads/links */}
       <Modal open={!!confirm} onClose={()=>{setConfirm(null); setDocFile(null); setAddrFile(null); setDocLink(""); setAddrLink("");}} title="Confirm KYC Status">
         {confirm && (
           <div className="space-y-5">
             <p>
-              Do you want to {confirm.next ? 'verify' : 'unverify'} KYC for <b>{confirm.row.email}</b>?
+              Do you want to {confirm.next ? 'approve' : 'unapprove'} KYC for <b>{confirm.row.email}</b>?
             </p>
             {confirm.next && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -186,7 +299,9 @@ export default function KycList(){
             )}
             <div className="flex justify-end gap-2">
               <button onClick={()=>{setConfirm(null); setDocFile(null); setAddrFile(null); setDocLink(""); setAddrLink("");}} className="px-4 h-10 rounded-md border">Cancel</button>
-              <button onClick={()=>onToggleStatus(confirm.row, confirm.next)} className="px-4 h-10 rounded-md bg-violet-600 text-white">Confirm</button>
+              <button onClick={()=>onToggleStatus(confirm.row, confirm.next)} className={`px-4 h-10 rounded-md text-white ${confirm.next ? 'bg-emerald-600' : 'bg-amber-600'}`}>
+                {confirm.next ? 'Approve' : 'Unapprove'}
+              </button>
             </div>
           </div>
         )}

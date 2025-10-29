@@ -108,17 +108,6 @@ export default function AddUser(){
                 <h3 className="text-base sm:text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">Account Settings</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">User Role</label>
-                    <select 
-                      value={state.role} 
-                      onChange={e=>setState({...state,role:e.target.value})} 
-                      className="w-full rounded-lg border border-gray-300 h-11 px-4 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Account Status</label>
                     <select 
                       value={state.status} 

@@ -1,9 +1,10 @@
 // src/pages/admin/UsersWithBalance.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import ProTable from "../../components/ProTable.jsx";
 import Modal from "../../components/Modal.jsx";
 import { Eye } from "lucide-react";
 import axios from "axios";
+import Swal from "sweetalert2";
 
 function fmtDate(v) {
   if (!v) return "-";
@@ -12,22 +13,63 @@ function fmtDate(v) {
   return d.toLocaleString();
 }
 
+// Validation function to check if account data is complete and valid
+function isValidAccountData(data) {
+  if (!data) return false;
+  
+  // Check if all critical fields have valid data (not fallback values)
+  const requiredFields = {
+    Name: data.Name && data.Name !== "-" && data.Name.trim() !== "",
+    Group: data.Group && data.Group !== "-" && data.Group.trim() !== "",
+    Balance: typeof data.Balance === 'number' && data.Balance >= 0,
+    Equity: typeof data.Equity === 'number' && data.Equity >= 0,
+    Leverage: data.Leverage && data.Leverage !== "-" && data.Leverage !== "",
+    Credit: typeof data.Credit === 'number' && data.Credit >= 0,
+    Margin: typeof data.Margin === 'number' && data.Margin >= 0,
+    MarginFree: typeof data.MarginFree === 'number' && data.MarginFree >= 0,
+    MarginLevel: typeof data.MarginLevel === 'number' && data.MarginLevel >= 0,
+    Profit: typeof data.Profit === 'number',
+    Comment: data.Comment !== undefined,
+    City: data.City !== undefined,
+    State: data.State !== undefined,
+    ZipCode: data.ZipCode !== undefined,
+    Address: data.Address !== undefined,
+    Registration: data.Registration !== undefined,
+    LastAccess: data.LastAccess !== undefined,
+    LastIP: data.LastIP !== undefined,
+    IsEnabled: typeof data.IsEnabled === 'boolean'
+  };
+  
+  // Count how many fields are valid
+  const validFields = Object.values(requiredFields).filter(Boolean).length;
+  const totalFields = Object.keys(requiredFields).length;
+  
+  // Account is valid if at least 80% of fields are valid
+  const isValid = validFields >= Math.ceil(totalFields * 0.8);
+  
+  console.log(`Account validation: ${validFields}/${totalFields} fields valid (${Math.round(validFields/totalFields*100)}%) - ${isValid ? 'VALID' : 'INVALID'}`);
+  
+  return isValid;
+}
+
 export default function UsersWithBalance() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [viewModal, setViewModal] = useState(null); // { user, accounts }
+  const [viewModal, setViewModal] = useState(null);
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [accountsError, setAccountsError] = useState("");
+  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
 
-  const MT5_API_BASE = "http://18.130.5.209:5003/api/Users";
+  const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
   useEffect(() => {
     let stop = false;
     setLoading(true);
     setError("");
     const token = localStorage.getItem('adminToken');
-    fetch(`/api/admin/users/with-balance?limit=500`, {
+    
+    fetch(`${BASE}/admin/users/with-balance?limit=500`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(r => r.json())
@@ -49,7 +91,164 @@ export default function UsersWithBalance() {
       .catch(e => setError(e.message || String(e)))
       .finally(() => !stop && setLoading(false));
     return () => { stop = true; };
-  }, []);
+  }, [BASE]);
+
+  const handleView = useCallback(async (row) => {
+    setViewModal({ user: row, accounts: [] });
+    setAccountsLoading(true);
+    setAccountsError("");
+    setLoadingProgress({ current: 0, total: row.MT5Account?.length || 0 });
+    
+    try {
+      // Check if user has MT5 accounts
+      if (!row.MT5Account || row.MT5Account.length === 0) {
+        setAccountsError("No MT5 accounts found for this user");
+        setAccountsLoading(false);
+        return;
+      }
+
+      console.log(`🚀 Starting to fetch ${row.MT5Account.length} MT5 accounts with STRICT validation...`);
+      
+      const validAccounts = [];
+      const invalidAccounts = [];
+      
+      // Process accounts sequentially to ensure proper validation
+      for (let i = 0; i < row.MT5Account.length; i++) {
+        const account = row.MT5Account[i];
+        setLoadingProgress({ current: i + 1, total: row.MT5Account.length });
+        
+        try {
+          console.log(`📡 [${i + 1}/${row.MT5Account.length}] Fetching account ${account.accountId}...`);
+          
+          const token = localStorage.getItem('adminToken');
+          const response = await axios.get(`${BASE}/admin/mt5/proxy/${account.accountId}/getClientProfile`, {
+            timeout: 20000, // Increased timeout
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data?.ok && response.data?.data) {
+            const mt5Response = response.data.data;
+            
+            if (mt5Response.Success && mt5Response.Data) {
+              const data = mt5Response.Data;
+              
+              console.log(`📊 [${i + 1}/${row.MT5Account.length}] Raw MT5 data for ${account.accountId}:`, {
+                Name: data.Name,
+                Group: data.Group,
+                Balance: data.Balance,
+                Equity: data.Equity,
+                Leverage: data.Leverage,
+                IsEnabled: data.IsEnabled
+              });
+              
+              // Validate the account data
+              if (isValidAccountData(data)) {
+                const accountData = {
+                  accountId: account.accountId,
+                  name: data.Name || "-",
+                  group: data.Group || "-",
+                  balance: data.Balance || 0,
+                  equity: data.Equity || 0,
+                  leverage: data.Leverage || "-",
+                  credit: data.Credit || 0,
+                  margin: data.Margin || 0,
+                  marginFree: data.MarginFree || 0,
+                  marginLevel: data.MarginLevel || 0,
+                  profit: data.Profit || 0,
+                  comment: data.Comment || "-",
+                  city: data.City || "-",
+                  state: data.State || "-",
+                  zipCode: data.ZipCode || "-",
+                  address: data.Address || "-",
+                  registration: data.Registration ? new Date(data.Registration).toLocaleString() : "-",
+                  lastAccess: data.LastAccess ? new Date(data.LastAccess).toLocaleString() : "-",
+                  lastIP: data.LastIP || "-",
+                  currency: "USD",
+                  isEnabled: data.IsEnabled
+                };
+                
+                validAccounts.push(accountData);
+                console.log(`✅ [${i + 1}/${row.MT5Account.length}] Account ${account.accountId} VALIDATED and added`);
+              } else {
+                invalidAccounts.push({
+                  accountId: account.accountId,
+                  reason: "Incomplete or invalid data from MT5 API"
+                });
+                console.log(`❌ [${i + 1}/${row.MT5Account.length}] Account ${account.accountId} REJECTED - Invalid data`);
+              }
+            } else {
+              invalidAccounts.push({
+                accountId: account.accountId,
+                reason: `MT5 API Error: ${mt5Response.Message || mt5Response.Error || 'Unknown error'}`
+              });
+              console.log(`❌ [${i + 1}/${row.MT5Account.length}] Account ${account.accountId} REJECTED - MT5 API failure`);
+            }
+          } else {
+            invalidAccounts.push({
+              accountId: account.accountId,
+              reason: `Proxy Error: ${response.data?.error || 'No data received from proxy'}`
+            });
+            console.log(`❌ [${i + 1}/${row.MT5Account.length}] Account ${account.accountId} REJECTED - Proxy error`);
+          }
+        } catch (error) {
+          invalidAccounts.push({
+            accountId: account.accountId,
+            reason: `Network Error: ${error.message}`
+          });
+          console.log(`❌ [${i + 1}/${row.MT5Account.length}] Account ${account.accountId} REJECTED - Network error: ${error.message}`);
+        }
+        
+        // Small delay between requests
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
+      console.log(`🎯 Fetch completed: ${validAccounts.length} valid accounts, ${invalidAccounts.length} rejected accounts`);
+      
+      // Only show modal if we have valid accounts
+      if (validAccounts.length > 0) {
+        setViewModal({ user: row, accounts: validAccounts });
+        
+        // Show success message with details
+        const message = invalidAccounts.length > 0 
+          ? `Loaded ${validAccounts.length} valid account(s). ${invalidAccounts.length} account(s) skipped due to incomplete data.`
+          : `Loaded all ${validAccounts.length} account(s) successfully!`;
+          
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: message,
+          timer: 3000,
+          showConfirmButton: false
+        });
+      } else {
+        setAccountsError(`No valid accounts found. All ${row.MT5Account.length} accounts were rejected due to incomplete data.`);
+        
+        Swal.fire({
+          icon: 'warning',
+          title: 'No Valid Data',
+          text: `All ${row.MT5Account.length} accounts were rejected due to incomplete or invalid data from MT5 server.`,
+          confirmButtonText: 'OK'
+        });
+      }
+      
+    } catch (e) {
+      const errorMessage = e.message || String(e);
+      setAccountsError(errorMessage);
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: `Failed to fetch MT5 account details: ${errorMessage}`,
+        confirmButtonText: 'OK'
+      });
+    } finally {
+      setAccountsLoading(false);
+      setLoadingProgress({ current: 0, total: 0 });
+    }
+  }, [BASE]);
 
   const columns = useMemo(() => [
     { key: "__index", label: "Sr No", sortable: false },
@@ -70,89 +269,11 @@ export default function UsersWithBalance() {
         </button>
       </div>
     ) },
-  ], []);
+  ], [handleView]);
 
   const filters = useMemo(() => ({
     searchKeys: ["name", "email", "phone", "country"],
   }), []);
-
-  async function handleView(row) {
-    setViewModal({ user: row, accounts: [] });
-    setAccountsLoading(true);
-    setAccountsError("");
-    try {
-      const accounts = await Promise.all(
-        row.MT5Account.map(async (account) => {
-          try {
-            const response = await axios.get(`${BASE}/admin/mt5/account/${account.accountId}`, {
-              timeout: 5000,
-              headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
-            });
-            if (response.data?.ok) {
-              const data = response.data.account;
-              if (!data) {
-                console.warn(`No data received for account ${account.accountId}:`, response.data);
-                throw new Error('No data received from API');
-              }
-              return {
-                accountId: data.Login || account.accountId,
-                name: data.Name || "-",
-                group: data.Group || "-",
-                balance: data.Balance || 0,
-                equity: data.Equity || 0,
-                leverage: data.Leverage || "-",
-                credit: data.Credit || 0,
-                margin: data.Margin || 0,
-                marginFree: data.MarginFree || 0,
-                marginLevel: data.MarginLevel || 0,
-                profit: data.Profit || 0,
-                comment: data.Comment || "-",
-                city: data.City || "-",
-                state: data.State || "-",
-                zipCode: data.ZipCode || "-",
-                address: data.Address || "-",
-                registration: data.Registration || "-",
-                lastAccess: data.LastAccess || "-",
-                lastIP: data.LastIP || "-",
-              };
-            } else {
-              console.warn(`API returned error for account ${account.accountId}:`, response.data);
-              throw new Error(`API error: ${response.data?.error || 'Unknown error'}`);
-            }
-          } catch (error) {
-            console.warn(`Failed to fetch details for account ${account.accountId}:`, error.message);
-            console.warn('Full error details:', error);
-            return {
-              accountId: account.accountId,
-              name: "-",
-              group: "-",
-              balance: 0,
-              equity: 0,
-              leverage: "-",
-              credit: 0,
-              margin: 0,
-              marginFree: 0,
-              marginLevel: 0,
-              profit: 0,
-              comment: "-",
-              city: "-",
-              state: "-",
-              zipCode: "-",
-              address: "-",
-              registration: "-",
-              lastAccess: "-",
-              lastIP: "-",
-            };
-          }
-        })
-      );
-      setViewModal({ user: row, accounts });
-    } catch (e) {
-      setAccountsError(e.message || String(e));
-    } finally {
-      setAccountsLoading(false);
-    }
-  }
 
   if (loading) return <div className="rounded-xl bg-white border border-gray-200 p-4">Loading users…</div>;
   if (error) return <div className="rounded-xl bg-white border border-rose-200 text-rose-700 p-4">{error}</div>;
@@ -172,9 +293,39 @@ export default function UsersWithBalance() {
       <Modal open={!!viewModal} onClose={() => setViewModal(null)} title={`MT5 Accounts for ${viewModal?.user?.name || 'User'}`}>
         {viewModal && (
           <div className="space-y-4">
-            {accountsLoading && <div>Loading account details...</div>}
-            {accountsError && <div className="text-rose-700">{accountsError}</div>}
-            {!accountsLoading && !accountsError && (
+            {accountsLoading && (
+              <div className="text-center py-8">
+                <div className="text-lg font-medium text-gray-700">Loading MT5 account details...</div>
+                <div className="text-sm text-gray-500 mt-2">
+                  Fetching and validating all accounts from MT5 server
+                  {loadingProgress.total > 0 && (
+                    <span className="ml-2">({loadingProgress.current}/{loadingProgress.total})</span>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                      style={{ 
+                        width: loadingProgress.total > 0 
+                          ? `${(loadingProgress.current / loadingProgress.total) * 100}%` 
+                          : '0%' 
+                      }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Only accounts with complete data will be displayed
+                </div>
+              </div>
+            )}
+            {accountsError && (
+              <div className="text-center py-8">
+                <div className="text-lg font-medium text-red-700">Error Loading Accounts</div>
+                <div className="text-sm text-red-600 mt-2">{accountsError}</div>
+              </div>
+            )}
+            {!accountsLoading && !accountsError && viewModal.accounts.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-gray-300">
                   <thead>
@@ -190,35 +341,40 @@ export default function UsersWithBalance() {
                       <th className="border border-gray-300 px-4 py-2">Margin Free</th>
                       <th className="border border-gray-300 px-4 py-2">Margin Level</th>
                       <th className="border border-gray-300 px-4 py-2">Profit</th>
-                    
-                      <th className="border border-gray-300 px-4 py-2">Registration</th>
-                      <th className="border border-gray-300 px-4 py-2">Last Access</th>
-                      <th className="border border-gray-300 px-4 py-2">Last IP</th>
+                      <th className="border border-gray-300 px-4 py-2">Currency</th>
                     </tr>
                   </thead>
                   <tbody>
                     {viewModal.accounts.map((account, index) => (
-                      <tr key={index}>
-                        <td className="border border-gray-300 px-4 py-2">{account.accountId}</td>
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 px-4 py-2 font-mono">{account.accountId}</td>
                         <td className="border border-gray-300 px-4 py-2">{account.name}</td>
                         <td className="border border-gray-300 px-4 py-2">{account.group}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.balance.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.equity.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">1:{account.leverage}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.credit.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.margin.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.marginFree.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.marginLevel.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">${account.profit.toFixed(2)}</td>
-                       
-                       
-                        <td className="border border-gray-300 px-4 py-2">{account.registration}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.lastAccess}</td>
-                        <td className="border border-gray-300 px-4 py-2">{account.lastIP}</td>
+                        <td className="border border-gray-300 px-4 py-2 font-mono">${account.balance.toFixed(2)}</td>
+                        <td className="border border-gray-300 px-4 py-2 font-mono">${account.equity.toFixed(2)}</td>
+                        <td className="border border-gray-300 px-4 py-2">{account.leverage}</td>
+                        <td className="border border-gray-300 px-4 py-2 font-mono">${account.credit.toFixed(2)}</td>
+                        <td className="border border-gray-300 px-4 py-2 font-mono">${account.margin.toFixed(2)}</td>
+                        <td className="border border-gray-300 px-4 py-2 font-mono">${account.marginFree.toFixed(2)}</td>
+                        <td className="border border-gray-300 px-4 py-2 font-mono">{account.marginLevel.toFixed(2)}%</td>
+                        <td className={`border border-gray-300 px-4 py-2 font-mono ${
+                          account.profit > 0 ? 'text-green-600' : account.profit < 0 ? 'text-red-600' : ''
+                        }`}>
+                          ${account.profit.toFixed(2)}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">{account.currency}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {!accountsLoading && !accountsError && viewModal.accounts.length === 0 && (
+              <div className="text-center py-8">
+                <div className="text-lg font-medium text-gray-700">No Valid Accounts Found</div>
+                <div className="text-sm text-gray-500 mt-2">
+                  All accounts were rejected due to incomplete or invalid data from MT5 server.
+                </div>
               </div>
             )}
             <div className="flex justify-end gap-2">

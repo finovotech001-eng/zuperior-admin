@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import ProTable from "../../components/ProTable.jsx";
 import Modal from "../../components/Modal.jsx";
 import { Pencil, Trash2, MailCheck, MailX, Eye, UserX, UserCheck } from "lucide-react";
+import Swal from "sweetalert2";
 
 function fmtDate(v) {
   if (!v) return "-";
@@ -72,42 +73,57 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
     { key: "createdAt", label: "Created", render: (v) => fmtDate(v) },
     { key: "lastLoginAt", label: "Last Login", render: (v) => fmtDate(v) },
     { key: "actions", label: "Actions", sortable: false, render: (v, row) => (
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => navigate(`/admin/users/${row.id}`)}
-          className="h-8 w-8 grid place-items-center rounded-md border border-violet-200 text-violet-700 hover:bg-violet-50"
-          title="View Details"
-        >
-          <Eye size={16} />
-        </button>
-        <button
-          onClick={() => setEditing(row)}
-          className="h-8 w-8 grid place-items-center rounded-md border border-violet-200 text-violet-700 hover:bg-violet-50"
-          title="Edit"
-        >
-          <Pencil size={16} />
-        </button>
-        <button
-          onClick={() => setConfirmBan({ row, next: row.status === 'banned' ? 'active' : 'banned' })}
-          className="h-8 w-8 grid place-items-center rounded-md border border-violet-200 text-violet-700 hover:bg-violet-50"
-          title={row.status === 'banned' ? 'Unban User' : 'Ban User'}
-        >
-          {row.status === 'banned' ? <UserCheck size={16} /> : <UserX size={16} />}
-        </button>
-        <button
-          onClick={() => setConfirmVerify({ row, next: row.emailVerified !== 'Yes' })}
-          className="h-8 w-8 grid place-items-center rounded-md border border-violet-200 text-violet-700 hover:bg-violet-50"
-          title={row.emailVerified === 'Yes' ? 'Unverify Email' : 'Verify Email'}
-        >
-          {row.emailVerified === 'Yes' ? <MailX size={16} /> : <MailCheck size={16} />}
-        </button>
-        <button
-          onClick={() => setConfirmDel(row)}
-          className="h-8 w-8 grid place-items-center rounded-md border border-rose-200 text-rose-600 hover:bg-rose-50"
-          title="Delete"
-        >
-          <Trash2 size={16} />
-        </button>
+      <div className="flex items-center gap-3">
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={() => navigate(`/admin/users/${row.id}`)}
+            className="h-8 w-8 grid place-items-center rounded-md border border-violet-200 text-violet-700 hover:bg-violet-50"
+            title="View Details"
+          >
+            <Eye size={16} />
+          </button>
+          <span className="text-xs text-gray-500">View</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={() => setEditing(row)}
+            className="h-8 w-8 grid place-items-center rounded-md border border-violet-200 text-violet-700 hover:bg-violet-50"
+            title="Edit"
+          >
+            <Pencil size={16} />
+          </button>
+          <span className="text-xs text-gray-500">Edit</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={() => setConfirmBan({ row, next: row.status === 'banned' ? 'active' : 'banned' })}
+            className="h-8 w-8 grid place-items-center rounded-md border border-violet-200 text-violet-700 hover:bg-violet-50"
+            title={row.status === 'banned' ? 'Unban User' : 'Ban User'}
+          >
+            {row.status === 'banned' ? <UserCheck size={16} /> : <UserX size={16} />}
+          </button>
+          <span className="text-xs text-gray-500">{row.status === 'banned' ? 'Unban' : 'Ban'}</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={() => setConfirmVerify({ row, next: row.emailVerified !== 'Yes' })}
+            className="h-8 w-8 grid place-items-center rounded-md border border-violet-200 text-violet-700 hover:bg-violet-50"
+            title={row.emailVerified === 'Yes' ? 'Unverify Email' : 'Verify Email'}
+          >
+            {row.emailVerified === 'Yes' ? <MailX size={16} /> : <MailCheck size={16} />}
+          </button>
+          <span className="text-xs text-gray-500">{row.emailVerified === 'Yes' ? 'Unverify' : 'Verify'}</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={() => setConfirmDel(row)}
+            className="h-8 w-8 grid place-items-center rounded-md border border-rose-200 text-rose-600 hover:bg-rose-50"
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </button>
+          <span className="text-xs text-gray-500">Delete</span>
+        </div>
       </div>
     ) },
   ], []);
@@ -128,8 +144,22 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
       const data = await r.json();
       if (!data?.ok) throw new Error(data?.error || 'Failed');
       setRows(list => list.map(it => it.id===row.id ? { ...it, emailVerified: next ? 'Yes' : 'No' } : it));
+      setConfirmVerify(null);
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: `Email ${next ? 'verified' : 'unverified'} successfully`,
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (e) {
-      alert(e.message || String(e));
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: e.message || String(e)
+      });
     }
   }
 
@@ -144,9 +174,23 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
       if (!data?.ok) throw new Error(data?.error || 'Failed');
       setRows(list => list.filter(it => it.id!==row.id));
       setConfirmDel(null);
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'User deleted successfully',
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (e) {
       console.error(e);
       setConfirmDel(null);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: e.message || String(e)
+      });
     }
   }
 
@@ -162,8 +206,22 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
       if (!data?.ok) throw new Error(data?.error || 'Failed');
       setRows(list => list.map(it => it.id===state.id ? { ...it, name: state.name, phone: state.phone, country: state.country, status: state.status } : it));
       setEditing(null);
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'User updated successfully',
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (e) {
       console.error(e);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: e.message || String(e)
+      });
     }
   }
 
@@ -187,8 +245,22 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
         return updated;
       });
       setConfirmBan(null);
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: `User ${next === 'banned' ? 'banned' : 'unbanned'} successfully`,
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (e) {
       console.error(e);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: e.message || String(e)
+      });
     }
   }
 

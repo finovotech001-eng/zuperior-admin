@@ -26,7 +26,6 @@ import WithdrawalsApproved from "../pages/admin/WithdrawalsApproved.jsx";
 import WithdrawalsRejected from "../pages/admin/WithdrawalsRejected.jsx";
 import WithdrawalsAll from "../pages/admin/WithdrawalsAll.jsx";
 import BulkLogs from "../pages/admin/BulkLogs.jsx";
-import SendEmails from "../pages/admin/SendEmails.jsx";
 import Logout from "../pages/admin/Logout.jsx";
 /** Admin Dashboard */
 
@@ -122,7 +121,6 @@ export default [
 
   { path: "wallet-qr",          element: <EmptyState title="Wallet QR Upload" subtitle="Upload deposit QR codes" /> },
   { path: "bulk-logs",          element: <BulkLogs /> },
-  { path: "send-emails",        element: <SendEmails /> },
 
    /* ----------------------- FUNDS & INVESTMENTS ------------------------ */
   { path: "fund-investments",    element: <EmptyState title="Fund Investments" subtitle="Incoming funds overview" /> },

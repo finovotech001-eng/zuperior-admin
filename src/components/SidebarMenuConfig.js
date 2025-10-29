@@ -9,17 +9,17 @@ import {
 export const ROLE_FEATURES = {
   superadmin: [
     'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
-    'payment-gateways', 'bulk-logs', 'send-emails', 'assign-roles', 'profile'
+    'payment-gateways', 'bulk-logs', 'assign-roles', 'profile'
   ],
   admin: [
     'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
-    'payment-gateways', 'bulk-logs', 'send-emails'
+    'payment-gateways', 'bulk-logs'
   ],
   moderator: [
-    'dashboard', 'users', 'kyc', 'bulk-logs', 'send-emails'
+    'dashboard', 'users', 'kyc', 'bulk-logs'
   ],
   support: [
-    'dashboard', 'users', 'kyc', 'send-emails'
+    'dashboard', 'users', 'kyc'
   ],
   analyst: [
     'dashboard', 'users', 'kyc', 'bulk-logs'

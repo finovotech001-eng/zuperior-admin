@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { ROLE_FEATURES } from "../../components/SidebarMenuConfig.js";
+import Swal from "sweetalert2";
 
 const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 import { 
@@ -50,7 +51,6 @@ const ADMIN_FEATURES = {
     { name: 'Manage Withdrawals', icon: DollarSign, path: 'withdrawals' },
     { name: 'Payment Gateways', icon: CreditCard, path: 'payment-gateways' },
     { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' },
-    { name: 'Send Emails', icon: Mail, path: 'send-emails' },
     { name: 'Assign Roles', icon: Settings, path: 'assign-roles' },
     { name: 'Admin Profile', icon: UserCheck, path: 'profile' }
   ],
@@ -62,21 +62,18 @@ const ADMIN_FEATURES = {
     { name: 'Manage Deposits', icon: CreditCard, path: 'deposits' },
     { name: 'Manage Withdrawals', icon: DollarSign, path: 'withdrawals' },
     { name: 'Payment Gateways', icon: CreditCard, path: 'payment-gateways' },
-    { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' },
-    { name: 'Send Emails', icon: Mail, path: 'send-emails' }
+    { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' }
   ],
   moderator: [
     { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
     { name: 'Manage Users', icon: Users, path: 'users' },
     { name: 'KYC Verifications', icon: Shield, path: 'kyc' },
-    { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' },
-    { name: 'Send Emails', icon: Mail, path: 'send-emails' }
+    { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' }
   ],
   support: [
     { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
     { name: 'Manage Users', icon: Users, path: 'users' },
-    { name: 'KYC Verifications', icon: Shield, path: 'kyc' },
-    { name: 'Send Emails', icon: Mail, path: 'send-emails' }
+    { name: 'KYC Verifications', icon: Shield, path: 'kyc' }
   ],
   analyst: [
     { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
@@ -197,7 +194,31 @@ export default function AssignRoles() {
     e.preventDefault();
     
     try {
+      // First, check if email exists in USER table
       const token = localStorage.getItem('adminToken');
+      const checkUserResponse = await fetch(`${BASE}/admin/users/check-email`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: newAdmin.email })
+      });
+      
+      if (checkUserResponse.ok) {
+        const checkData = await checkUserResponse.json();
+        if (checkData.exists) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Email Already Exists!',
+            text: 'This email is already registered as a client user. Please use a different email address.',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+      }
+      
+      // If email doesn't exist in USER table, proceed with admin creation
       const response = await fetch(`${BASE}/admin/admins`, {
         method: 'POST',
         headers: {
@@ -219,12 +240,46 @@ export default function AssignRoles() {
           features: []
         });
         setError("");
+        
+        // Show success message
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Admin account created successfully',
+          timer: 2000,
+          showConfirmButton: false
+        });
       } else {
         const data = await response.json();
-        setError(data.error || 'Failed to create admin');
+        const errorMessage = data.error || 'Failed to create admin';
+        
+        // Check if it's an email already exists error
+        if (errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('already')) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Email Already Exists!',
+            text: 'This email is already registered in the system. Please use a different email address.',
+            confirmButtonText: 'OK'
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: errorMessage,
+            confirmButtonText: 'OK'
+          });
+        }
+        setError(errorMessage);
       }
     } catch (err) {
-      setError('Failed to create admin');
+      const errorMessage = 'Failed to create admin';
+      setError(errorMessage);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: errorMessage,
+        confirmButtonText: 'OK'
+      });
     }
   };
 
@@ -245,12 +300,35 @@ export default function AssignRoles() {
           admin.id === adminId ? { ...admin, admin_role: newRole } : admin
         ));
         setError("");
+        
+        // Show success message
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Admin role updated successfully',
+          timer: 2000,
+          showConfirmButton: false
+        });
       } else {
         const data = await response.json();
-        setError(data.error || 'Failed to update role');
+        const errorMessage = data.error || 'Failed to update role';
+        setError(errorMessage);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error!',
+          text: errorMessage,
+          confirmButtonText: 'OK'
+        });
       }
     } catch (err) {
-      setError('Failed to update role');
+      const errorMessage = 'Failed to update role';
+      setError(errorMessage);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: errorMessage,
+        confirmButtonText: 'OK'
+      });
     }
   };
 
@@ -281,11 +359,23 @@ export default function AssignRoles() {
   const handleChangePassword = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setError('Passwords do not match');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Passwords do not match',
+        confirmButtonText: 'OK'
+      });
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
       setError('Password must be at least 6 characters');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Password must be at least 6 characters',
+        confirmButtonText: 'OK'
+      });
       return;
     }
 
@@ -307,13 +397,35 @@ export default function AssignRoles() {
         setSelectedAdmin(null);
         setPasswordForm({ newPassword: '', confirmPassword: '' });
         setError("");
-        alert('Password updated successfully');
+        
+        // Show success message
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Password updated successfully',
+          timer: 2000,
+          showConfirmButton: false
+        });
       } else {
         const data = await response.json();
-        setError(data.error || 'Failed to update password');
+        const errorMessage = data.error || 'Failed to update password';
+        setError(errorMessage);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error!',
+          text: errorMessage,
+          confirmButtonText: 'OK'
+        });
       }
     } catch (err) {
-      setError('Failed to update password');
+      const errorMessage = 'Failed to update password';
+      setError(errorMessage);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: errorMessage,
+        confirmButtonText: 'OK'
+      });
     }
   };
 
@@ -322,11 +434,23 @@ export default function AssignRoles() {
     
     if (!newRole.name.trim()) {
       setError('Role name is required');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Role name is required',
+        confirmButtonText: 'OK'
+      });
       return;
     }
 
     if (newRole.features.length === 0) {
       setError('Please select at least one feature for the role');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Please select at least one feature for the role',
+        confirmButtonText: 'OK'
+      });
       return;
     }
 
@@ -363,16 +487,38 @@ export default function AssignRoles() {
           features: []
         });
         setError("");
-        alert('Role created successfully!');
+        
+        // Show success message
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Role created successfully!',
+          timer: 2000,
+          showConfirmButton: false
+        });
         
         // Refresh the page to show the new role
         window.location.reload();
       } else {
         const data = await response.json();
-        setError(data.error || 'Failed to create role');
+        const errorMessage = data.error || 'Failed to create role';
+        setError(errorMessage);
+        Swal.fire({
+          icon: 'error',
+          title: 'Failed to create role',
+          text: 'Unable to create new role. Please try again.',
+          confirmButtonText: 'OK'
+        });
       }
     } catch (err) {
-      setError('Failed to create role');
+      const errorMessage = 'Failed to create role';
+      setError(errorMessage);
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to create role',
+        text: 'Unable to create new role. Please try again.',
+        confirmButtonText: 'OK'
+      });
     }
   };
 
