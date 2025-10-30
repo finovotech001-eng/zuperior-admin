@@ -1,16 +1,20 @@
 // src/pages/admin/AddUser.jsx
 import { useState } from 'react';
+import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
 
 export default function AddUser(){
   const [state, setState] = useState({ name:'', email:'', phone:'', country:'', password:'', role:'user', status:'active', emailVerified:false });
   const [submitting,setSubmitting] = useState(false);
   const [msg,setMsg] = useState('');
   const BASE = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:5003';
+  const navigate = useNavigate(); // <-- for redirect
 
   async function onSubmit(e){
     e.preventDefault(); setSubmitting(true); setMsg('');
     try{
       const token = localStorage.getItem('adminToken');
+      // Create user first as before
       const r = await fetch(`${BASE}/admin/users`, { 
         method:'POST', 
         headers:{
@@ -22,8 +26,44 @@ export default function AddUser(){
       const data = await r.json();
       if(!data?.ok) throw new Error(data?.error||'Failed');
       setMsg(`User created: ${data.user.email}`);
+      // Call the welcome mail API
+      const res = await fetch('https://zuperior-crm-api.onrender.com/api/emails/send-welcome', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: state.email,
+          name: state.name || 'User'
+        })
+      });
+      const respJson = await res.json();
+      if (!res.ok || respJson?.error || respJson?.message?.toLowerCase().includes('exist')) {
+        // Check for duplicate, error or message containing 'exist'
+        await Swal.fire({
+          icon: 'error',
+          title: 'Email Already Exists',
+          text: respJson?.message || respJson?.error || 'That email address has already been used.'
+        });
+        setSubmitting(false);
+        return;
+      }
+      await Swal.fire({
+        icon: 'success',
+        title: 'User Added & Mail Sent',
+        text: `User added successfully and welcome email sent to ${state.email}.`,
+      });
       setState({ name:'', email:'', phone:'', country:'', password:'', role:'user', status:'active', emailVerified:false });
-    }catch(e){ setMsg(e.message||String(e)); }
+      navigate('/admin/users/all');
+    }catch(e){ 
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: e.message||String(e)
+      });
+      setMsg(e.message||String(e)); 
+    }
     finally{ setSubmitting(false); }
   }
 
