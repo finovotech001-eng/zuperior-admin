@@ -199,6 +199,13 @@ export const ADMIN_MENU = [
   //   ],
   // },
   {
+    label: "COUNTRY PARTNER ADMIN",
+    items: [
+      { icon: Users, label: "Assign Country Partner", to: "/admin/assign-country-partner" },
+      { icon: ShieldCheck, label: "Assigned Country Admins", to: "/admin/assigned-country-admins" },
+    ]
+  },
+  {
     label: "SYSTEM",
     items: [
       // { icon: ServerCog, label: "MT5 Connection", to: "mt5-connection" },

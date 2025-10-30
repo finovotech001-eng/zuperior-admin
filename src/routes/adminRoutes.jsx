@@ -30,6 +30,8 @@ import Logout from "../pages/admin/Logout.jsx";
 import PaymentDetails from "../pages/admin/PaymentDetails.jsx";
 import SupportTicketsList from "../pages/admin/SupportTicketsList.jsx";
 import SupportTicketView from "../pages/admin/SupportTicketView.jsx";
+import AssignCountryPartner from "../pages/admin/AssignCountryPartner.jsx";
+import AssignedCountryAdmins from "../pages/admin/AssignedCountryAdmins.jsx";
 /** Admin Dashboard */
 
 export default [
@@ -147,6 +149,8 @@ export default [
   { path: "prize-distribution",  element: <EmptyState title="Prize Distribution" subtitle="Campaign payouts" /> },
   { path: "profile",             element: <AdminProfile /> },
   { path: "assign-roles",        element: <AssignRoles /> },
+  { path: "assign-country-partner", element: <AssignCountryPartner /> },
+  { path: "assigned-country-admins", element: <AssignedCountryAdmins /> },
 
   /* ------------------------------ AUTH -------------------------------- */
   { path: "logout", element: <Logout /> },
