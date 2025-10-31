@@ -57,6 +57,19 @@ export function AuthProvider({ children }) {
     window.location.href = '/login';
   };
 
+  // Intercept all fetch responses: on 401, perform logout to refresh token
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (input, init) => {
+      const response = await originalFetch(input, init);
+      if (response && response.status === 401) {
+        try { logout(); } catch {}
+      }
+      return response;
+    };
+    return () => { window.fetch = originalFetch; };
+  }, []);
+
   const isAuthenticated = () => {
     return !!admin && !!localStorage.getItem("adminToken");
   };
