@@ -59,7 +59,7 @@ export default function Shell() {
   }, [menu, pathname, role]);
 
   return (
-    <div className="min-h-screen bg-sky-50 relative">
+    <div className="min-h-screen bg-gray-100 relative">
       {/* Fixed sidebar (desktop) + drawer (mobile) */}
       <Sidebar
         role={role}

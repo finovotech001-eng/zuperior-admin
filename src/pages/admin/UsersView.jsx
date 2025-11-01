@@ -1,18 +1,20 @@
 // src/pages/admin/UsersView.jsx
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Users, Wallet, Download, Upload, ShieldCheck } from "lucide-react";
 import ProTable from "../../components/ProTable.jsx";
+import Modal from "../../components/Modal.jsx";
+import Swal from "sweetalert2";
 
 function Stat({ icon:Icon, label, value, tone }) {
   return (
-    <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-4 flex items-center gap-3">
+    <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-4 flex items-center gap-3 hover:shadow-md transition-shadow">
       <span className={`h-10 w-10 grid place-items-center rounded-xl ${tone}`}> 
         <Icon className="h-5 w-5" />
       </span>
       <div>
         <div className="text-xs text-gray-500">{label}</div>
-        <div className="text-lg font-semibold">{value}</div>
+        <div className="text-lg font-semibold tracking-tight">{value}</div>
       </div>
     </div>
   );
@@ -25,9 +27,28 @@ export default function UsersView(){
   const [data,setData] = useState(null);
   const [err,setErr] = useState("");
   const [logins, setLogins] = useState([]);
+  const [actionModal, setActionModal] = useState(null); // { type, accountId, amount, comment }
+  const [mt5Map, setMt5Map] = useState({}); // accountId -> {balance, equity}
+  const [submitting, setSubmitting] = useState(false);
   const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
-  useEffect(()=>{
+  const totalMt5Balance = useMemo(() => {
+    try {
+      return Object.values(mt5Map).reduce((sum, v) => sum + (Number(v?.balance) || 0), 0);
+    } catch {
+      return 0;
+    }
+  }, [mt5Map]);
+
+  const totalMt5Equity = useMemo(() => {
+    try {
+      return Object.values(mt5Map).reduce((sum, v) => sum + (Number(v?.equity) || 0), 0);
+    } catch {
+      return 0;
+    }
+  }, [mt5Map]);
+
+  const fetchUser = useCallback(()=>{
     let stop=false;
     fetch(`${BASE}/admin/users/${id}`)
       .then(r=>r.json())
@@ -35,6 +56,11 @@ export default function UsersView(){
       .catch(e=>setErr(e.message||String(e)));
     return ()=>{stop=true};
   },[BASE,id]);
+
+  useEffect(()=>{
+    const cancel = fetchUser();
+    return cancel;
+  },[fetchUser]);
 
   useEffect(()=>{
     const token = localStorage.getItem('adminToken');
@@ -45,6 +71,29 @@ export default function UsersView(){
       .catch(()=>{});
     return () => { cancel = true; };
   }, [BASE, id]);
+
+  // Fetch MT5 balances/equity for each account id on page load
+  useEffect(()=>{
+    const token = localStorage.getItem('adminToken');
+    if (!data?.user?.MT5Account?.length) return;
+    let stop = false;
+    (async () => {
+      const entries = await Promise.all(
+        data.user.MT5Account.map(async a => {
+          try {
+            const res = await fetch(`${BASE}/admin/mt5/proxy/${a.accountId}/getClientProfile`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const j = await res.json();
+            const d = j?.data?.Data || j?.data || {};
+            return [a.accountId, { balance: Number(d.Balance||0), equity: Number(d.Equity||0) }];
+          } catch {
+            return [a.accountId, { balance: 0, equity: 0 }];
+          }
+        })
+      );
+      if (!stop) setMt5Map(Object.fromEntries(entries));
+    })();
+    return () => { stop = true; };
+  }, [BASE, data?.user?.MT5Account]);
 
   if(err) return <div className="rounded-xl bg-white border border-rose-200 text-rose-700 p-4">{err}</div>;
   if(!data) return <div className="rounded-xl bg-white border border-gray-200 p-4">Loading…</div>;
@@ -68,8 +117,9 @@ export default function UsersView(){
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat icon={Wallet} label="Account Balance" value={`$${t.accountBalance.toLocaleString()}`} tone="bg-violet-100 text-violet-700" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Stat icon={Wallet} label="Account Balance" value={`$${totalMt5Balance.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`} tone="bg-violet-100 text-violet-700" />
+        <Stat icon={Wallet} label="Total Equity" value={`$${totalMt5Equity.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`} tone="bg-blue-100 text-blue-700" />
         <Stat icon={Download} label="Total Deposits" value={`$${t.deposits.amount.toLocaleString()} (${t.deposits.count})`} tone="bg-emerald-100 text-emerald-700" />
         <Stat icon={Upload} label="Total Withdrawals" value={`$${t.withdrawals.amount.toLocaleString()} (${t.withdrawals.count})`} tone="bg-rose-100 text-rose-700" />
         <Stat icon={ShieldCheck} label="Email Verified" value={u.emailVerified ? 'Yes' : 'No'} tone={u.emailVerified?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-800'} />
@@ -100,42 +150,40 @@ export default function UsersView(){
         </div>
       </div>
 
-      {/* Accounts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm">
-          <div className="px-5 pt-4 pb-2 text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4"/> Wallet Accounts</div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50"><tr>
-                <th className="px-4 py-2 text-left">Type</th>
-                <th className="px-4 py-2 text-left">Balance</th>
-                <th className="px-4 py-2 text-left">Created</th>
-              </tr></thead>
-              <tbody className="divide-y">
-                {u.Account?.length ? u.Account.map(a=> (
-                  <tr key={a.id}><td className="px-4 py-2">{a.accountType}</td><td className="px-4 py-2">${a.balance?.toLocaleString?.()||a.balance}</td><td className="px-4 py-2">{fmt(a.createdAt)}</td></tr>
-                )) : <tr><td className="px-4 py-4" colSpan={3}>No accounts</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm">
+      {/* MT5 Accounts full width */}
+      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm">
           <div className="px-5 pt-4 pb-2 text-sm font-semibold">MT5 Accounts</div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-gray-50"><tr>
+              <thead className="bg-gray-50 text-gray-700 uppercase text-xs tracking-wider">
+                <tr>
                 <th className="px-4 py-2 text-left">Account ID</th>
+                <th className="px-4 py-2 text-left">Balance</th>
+                <th className="px-4 py-2 text-left">Equity</th>
                 <th className="px-4 py-2 text-left">Created</th>
-              </tr></thead>
+                <th className="px-4 py-2 text-left">Actions</th>
+                </tr>
+              </thead>
               <tbody className="divide-y">
                 {u.MT5Account?.length ? u.MT5Account.map(a=> (
-                  <tr key={a.id}><td className="px-4 py-2">{a.accountId}</td><td className="px-4 py-2">{fmt(a.createdAt)}</td></tr>
-                )) : <tr><td className="px-4 py-4" colSpan={2}>No MT5 accounts</td></tr>}
+                  <tr key={a.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2">{a.accountId}</td>
+                    <td className="px-4 py-2">${(mt5Map[a.accountId]?.balance || 0).toFixed(2)}</td>
+                    <td className="px-4 py-2">${(mt5Map[a.accountId]?.equity || 0).toFixed(2)}</td>
+                    <td className="px-4 py-2">{fmt(a.createdAt)}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <button onClick={()=> setActionModal({ type:'deposit', accountId: a.accountId, amount:'', comment:'Admin deposit' })}
+                                className="px-2 py-1 rounded-full bg-emerald-600 text-white text-xs hover:bg-emerald-700 shadow-sm">Deposit</button>
+                        <button onClick={()=> setActionModal({ type:'withdraw', accountId: a.accountId, amount:'', comment:'Admin withdrawal' })}
+                                className="px-2 py-1 rounded-full bg-rose-600 text-white text-xs hover:bg-rose-700 shadow-sm">Withdraw</button>
+                      </div>
+                    </td>
+                  </tr>
+                )) : <tr><td className="px-4 py-4" colSpan={5}>No MT5 accounts</td></tr>}
               </tbody>
             </table>
           </div>
-        </div>
       </div>
 
       {/* Login Activity */}
@@ -167,6 +215,62 @@ export default function UsersView(){
           />
         </div>
       </div>
+
+      {/* Deposit/Withdraw Modal for MT5 accounts */}
+      <Modal open={!!actionModal} onClose={()=>setActionModal(null)} title={actionModal ? (actionModal.type==='deposit' ? 'Add Balance' : 'Deduct Balance') : ''}>
+        {actionModal && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (USD)</label>
+              <input type="number" min="0" step="0.01" value={actionModal.amount}
+                     onChange={e=>setActionModal({ ...actionModal, amount: e.target.value })}
+                     disabled={submitting}
+                     className="w-full rounded-md border border-gray-300 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-gray-100 disabled:text-gray-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+              <input type="text" value={actionModal.comment}
+                     onChange={e=>setActionModal({ ...actionModal, comment: e.target.value })}
+                     disabled={submitting}
+                     className="w-full rounded-md border border-gray-300 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-gray-100 disabled:text-gray-500" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={()=>setActionModal(null)} disabled={submitting} className="px-4 h-10 rounded-md border disabled:opacity-60">Cancel</button>
+              <button onClick={async ()=>{
+                const amt = Number(actionModal.amount);
+                if (!amt || amt<=0) { Swal.fire({ icon:'error', title:'Enter amount' }); return; }
+                try {
+                  setSubmitting(true);
+                  const token = localStorage.getItem('adminToken');
+                  const url = actionModal.type==='deposit' ? `${BASE}/admin/mt5/deposit` : `${BASE}/admin/mt5/withdraw`;
+                  const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${token}` }, body: JSON.stringify({ login: actionModal.accountId, amount: amt, description: actionModal.comment }) });
+                  const j = await r.json();
+                  if (!j?.ok) throw new Error(j?.error||'Failed');
+                  setActionModal(null);
+                  Swal.fire({ icon:'success', title: actionModal.type==='deposit' ? 'Deposit successful' : 'Withdrawal successful', timer:1500, showConfirmButton:false });
+                  fetchUser();
+                } catch(e) {
+                  Swal.fire({ icon:'error', title: actionModal.type==='deposit' ? 'Deposit failed' : 'Withdrawal failed', text:e.message||String(e) });
+                } finally {
+                  setSubmitting(false);
+                }
+              }} disabled={submitting} className={`px-4 h-10 rounded-md text-white disabled:opacity-70 ${actionModal.type==='deposit' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}>
+                {submitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                    Processing...
+                  </span>
+                ) : (
+                  actionModal.type==='deposit' ? 'Deposit' : 'Withdraw'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
