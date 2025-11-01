@@ -1,7 +1,8 @@
 // src/pages/admin/UsersView.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Users, Wallet, Download, Upload, ShieldCheck } from "lucide-react";
+import ProTable from "../../components/ProTable.jsx";
 
 function Stat({ icon:Icon, label, value, tone }) {
   return (
@@ -23,6 +24,7 @@ export default function UsersView(){
   const { id } = useParams();
   const [data,setData] = useState(null);
   const [err,setErr] = useState("");
+  const [logins, setLogins] = useState([]);
   const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
   useEffect(()=>{
@@ -33,6 +35,16 @@ export default function UsersView(){
       .catch(e=>setErr(e.message||String(e)));
     return ()=>{stop=true};
   },[BASE,id]);
+
+  useEffect(()=>{
+    const token = localStorage.getItem('adminToken');
+    let cancel = false;
+    fetch(`${BASE}/admin/users/${id}/logins`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(r=>r.json())
+      .then(j => { if (cancel) return; setLogins(Array.isArray(j.items) ? j.items : []); })
+      .catch(()=>{});
+    return () => { cancel = true; };
+  }, [BASE, id]);
 
   if(err) return <div className="rounded-xl bg-white border border-rose-200 text-rose-700 p-4">{err}</div>;
   if(!data) return <div className="rounded-xl bg-white border border-gray-200 p-4">Loading…</div>;
@@ -123,6 +135,36 @@ export default function UsersView(){
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* Login Activity */}
+      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm">
+        <div className="px-5 pt-4 pb-2 text-sm font-semibold">Login Activity</div>
+        <div className="p-4">
+          <ProTable
+            title={null}
+            rows={(logins||[]).map((r, idx) => ({
+              __index: idx+1,
+              time: r.createdAt || r.createdat || r.created_at,
+              device: r.device || '-',
+              browser: r.browser || '-',
+              user_agent: r.user_agent || '-',
+              success: r.success ? 'Yes' : 'No',
+              failure_reason: r.failure_reason || '-',
+            }))}
+            columns={[
+              { key: '__index', label: 'Sr No', sortable: false },
+              { key: 'time', label: 'Time' },
+              { key: 'device', label: 'Device' },
+              { key: 'browser', label: 'Browser' },
+              { key: 'user_agent', label: 'User Agent' },
+              { key: 'success', label: 'Success' },
+              { key: 'failure_reason', label: 'Failure Reason' },
+            ]}
+            filters={{ searchKeys: ['device','browser','user_agent','failure_reason'] }}
+            pageSize={10}
+          />
         </div>
       </div>
     </div>

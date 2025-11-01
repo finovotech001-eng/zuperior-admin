@@ -69,7 +69,7 @@ export default function AssignCountryPartner() {
       });
 
       const data = await safeJson(res);
-      if (!res.ok) {
+      if (!res.ok || !data?.ok) {
         if (res.status === 404) {
           throw new Error("API endpoint /admin/country-admins not found (404). Please check your backend routes.");
         } else if (res.status >= 500) {
@@ -132,7 +132,7 @@ export default function AssignCountryPartner() {
                     <label className="text-sm font-medium text-gray-700">Country</label>
                     <select className="w-full rounded-lg border border-gray-300 h-11 px-4 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all" required value={form.country || ""} onChange={e=>setForm(f=>({...f,country:e.target.value}))}>
                       <option value="" disabled>Select country...</option>
-                      {countries.map((c,i)=>c && c.code ? (
+                      {countries.map((c)=>c && c.code ? (
                         <option key={c.code} value={c.code}>{c.country}</option>
                       ) : null)}
                     </select>
