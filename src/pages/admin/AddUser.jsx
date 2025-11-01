@@ -1,27 +1,51 @@
 // src/pages/admin/AddUser.jsx
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 
 export default function AddUser(){
-  const [state, setState] = useState({ name:'', email:'', phone:'', country:'', password:'', role:'user', status:'active', emailVerified:false });
+  const [state, setState] = useState({ name:'', email:'', phone:'', country:'', password:'', role:'user', status:'active', emailVerified:false, kycVerified:false });
   const [submitting,setSubmitting] = useState(false);
   const [msg,setMsg] = useState('');
   const BASE = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:5003';
   const navigate = useNavigate(); // <-- for redirect
+  const [countries, setCountries] = useState([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    fetch(`${BASE}/admin/countries`, { headers: { 'Authorization': `Bearer ${token}` }} )
+      .then(r => r.json())
+      .then(data => { if (data?.ok && Array.isArray(data.countries)) setCountries(data.countries); })
+      .catch(() => {});
+  }, [BASE]);
+
+  // ISO2 -> dial code mapping (common countries)
+  const DIAL_CODE = useMemo(() => ({
+    AE: 971, AR: 54, AT: 43, AU: 61, BE: 32, BG: 359, BH: 973, BR: 55, CA: 1, CH: 41,
+    CN: 86, CZ: 420, DE: 49, DK: 45, EG: 20, ES: 34, FI: 358, FR: 33, GB: 44, GR: 30,
+    HK: 852, HR: 385, HU: 36, ID: 62, IE: 353, IL: 972, IN: 91, IT: 39, JP: 81, JO: 962,
+    KE: 254, KW: 965, MY: 60, MX: 52, NL: 31, NO: 47, NP: 977, NZ: 64, OM: 968, PH: 63,
+    PK: 92, PL: 48, PT: 351, QA: 974, RO: 40, RS: 381, RU: 7, SA: 966, SE: 46, SG: 65,
+    SI: 386, SK: 421, TH: 66, TR: 90, UA: 380, AE: 971, US: 1, UY: 598, VE: 58, VN: 84,
+    ZA: 27, BD: 880, LK: 94, KR: 82, TW: 886, KW: 965, BH: 973, QA: 974, OM: 968, AE: 971
+  }), []);
 
   async function onSubmit(e){
     e.preventDefault(); setSubmitting(true); setMsg('');
     try{
       const token = localStorage.getItem('adminToken');
       // Create user first as before
+      const payload = {
+        ...state,
+        country: (state.country || '').toLowerCase(),
+      };
       const r = await fetch(`${BASE}/admin/users`, { 
         method:'POST', 
         headers:{
           'Content-Type':'application/json',
           'Authorization': `Bearer ${token}`
         }, 
-        body: JSON.stringify(state) 
+        body: JSON.stringify(payload) 
       });
       const data = await r.json();
       if(!data?.ok) throw new Error(data?.error||'Failed');
@@ -54,7 +78,7 @@ export default function AddUser(){
         title: 'User Added & Mail Sent',
         text: `User added successfully and welcome email sent to ${state.email}.`,
       });
-      setState({ name:'', email:'', phone:'', country:'', password:'', role:'user', status:'active', emailVerified:false });
+      setState({ name:'', email:'', phone:'', country:'', password:'', role:'user', status:'active', emailVerified:false, kycVerified:false });
       navigate('/admin/users/all');
     }catch(e){ 
       await Swal.fire({
@@ -111,22 +135,41 @@ export default function AddUser(){
                       placeholder="user@example.com"
                     />
                   </div>
+                  {/* Country first */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Country</label>
+                    <select
+                      value={state.country}
+                      onChange={e => {
+                        const iso2 = (e.target.value || '').toUpperCase();
+                        const dial = DIAL_CODE[iso2];
+                        let phone = state.phone || '';
+                        if (dial) {
+                          const prefix = `+${String(dial)}`;
+                          if (!phone.startsWith(prefix)) {
+                            phone = phone.replace(/^\+\d+\s*/,'');
+                            phone = `${prefix} ${phone}`.trimEnd();
+                          }
+                        }
+                        // store ISO2 uppercase in state to match option values
+                        setState({ ...state, country: iso2, phone });
+                      }}
+                      className="w-full rounded-lg border border-gray-300 h-11 px-4 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                    >
+                      <option value="">Select country</option>
+                      {countries.map((c, idx) => (
+                        <option key={idx} value={(c.code||'').toUpperCase()}>{c.country}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Phone number next, auto-prefixed by country code */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Phone Number</label>
                     <input 
                       value={state.phone} 
                       onChange={e=>setState({...state,phone:e.target.value})} 
                       className="w-full rounded-lg border border-gray-300 h-11 px-4 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all" 
-                      placeholder="+1 (555) 123-4567"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Country</label>
-                    <input 
-                      value={state.country} 
-                      onChange={e=>setState({...state,country:e.target.value})} 
-                      className="w-full rounded-lg border border-gray-300 h-11 px-4 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all" 
-                      placeholder="United States"
+                      placeholder="+1 555 123 4567"
                     />
                   </div>
                   <div className="space-y-2">
@@ -170,6 +213,19 @@ export default function AddUser(){
                         className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                       />
                       <label htmlFor="ev" className="text-sm text-gray-700">Mark email as verified</label>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">KYC Verification</label>
+                    <div className="flex items-center space-x-3 pt-2">
+                      <input
+                        id="kv"
+                        type="checkbox"
+                        checked={state.kycVerified}
+                        onChange={e=>setState({...state, kycVerified: e.target.checked})}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="kv" className="text-sm text-gray-700">Mark KYC as verified</label>
                     </div>
                   </div>
                 </div>

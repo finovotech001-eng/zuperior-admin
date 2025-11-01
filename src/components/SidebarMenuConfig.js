@@ -109,7 +109,7 @@ export const ADMIN_MENU = [
         to: "support/open",
         children: [
           { label: "Opened Tickets", to: "support/open" },
-          { label: "Pending Tickets", to: "support/pending" },
+         
           { label: "Closed Tickets", to: "support/closed" },
         ],
       },

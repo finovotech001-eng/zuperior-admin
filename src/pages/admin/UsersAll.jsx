@@ -49,6 +49,7 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
           role: u.role,
           status: u.status,
           emailVerified: u.emailVerified ? "Yes" : "No",
+          kycVerified: (u.KYC?.verificationStatus === 'Approved' || u.KYC?.verificationStatus === 'Verified') ? 'Yes' : 'No',
           createdAt: u.createdAt,
           lastLoginAt: u.lastLoginAt,
         })));
@@ -68,6 +69,9 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
       <Badge tone={v === 'active' ? 'green' : 'red'}>{v}</Badge>
     ) },
     { key: "emailVerified", label: "Email Verified", render: (v, row, Badge) => (
+      <Badge tone={v === 'Yes' ? 'green' : 'amber'}>{v}</Badge>
+    ) },
+    { key: "kycVerified", label: "KYC Verified", render: (v, row, Badge) => (
       <Badge tone={v === 'Yes' ? 'green' : 'amber'}>{v}</Badge>
     ) },
     { key: "createdAt", label: "Created", render: (v) => fmtDate(v) },
@@ -216,6 +220,16 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
       const data = await r.json();
       if (!data?.ok) throw new Error(data?.error || 'Failed');
       setRows(list => list.map(it => it.id===state.id ? { ...it, name: state.name, phone: state.phone, country: state.country, status: state.status } : it));
+      // KYC verify if toggled
+      if (state.kycVerified) {
+        try {
+          await fetch(`${BASE}/admin/users/${state.id}/kyc-verify`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ verified: true })
+          });
+        } catch {}
+      }
       setEditing(null);
       
       // Show success message
@@ -353,6 +367,7 @@ function UserEditForm({ user, onCancel, onSubmit }) {
     phone: user.phone || "",
     country: user.country || "",
     status: user.status || "active",
+    kycVerified: false,
   });
   return (
     <form onSubmit={e=>{e.preventDefault(); onSubmit(state);}} className="space-y-4">
@@ -384,6 +399,13 @@ function UserEditForm({ user, onCancel, onSubmit }) {
             <option value="inactive">inactive</option>
             <option value="banned">banned</option>
           </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="text-xs text-gray-600">KYC Verification</label>
+          <div className="mt-1 flex items-center gap-2">
+            <input type="checkbox" id={`kyc-${user.id}`} checked={state.kycVerified} onChange={e=>setState({...state, kycVerified: e.target.checked})} />
+            <label htmlFor={`kyc-${user.id}`} className="text-sm">Mark KYC as verified</label>
+          </div>
         </div>
       </div>
       <div className="flex justify-end gap-2">

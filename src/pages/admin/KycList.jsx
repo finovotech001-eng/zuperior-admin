@@ -22,13 +22,15 @@ export default function KycList(){
     setLoading(true); setErr("");
     try{
       const token = localStorage.getItem('adminToken');
-      const r = await fetch(`${BASE}/admin/kyc?limit=500`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const [r, ru] = await Promise.all([
+        fetch(`${BASE}/admin/kyc?limit=500`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${BASE}/admin/users/all?limit=500`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
       const data = await r.json();
+      const users = await ru.json();
       if(!data?.ok) throw new Error(data?.error||'Failed');
       const items = data.items || [];
-      setRows(items.map(k=>({
+      const fromKyc = items.map(k=>({
         id:k.id,
         userId:k.userId,
         name:k.User?.name||'-',
@@ -42,7 +44,30 @@ export default function KycList(){
         documentSubmittedAt:k.documentSubmittedAt,
         addressSubmittedAt:k.addressSubmittedAt,
         createdAt:k.createdAt,
-      })));
+      }));
+      let merged = fromKyc;
+      if (users?.ok && Array.isArray(users.items)) {
+        const present = new Set(items.map(it => it.userId));
+        const synth = users.items
+          .filter(u => !present.has(u.id))
+          .map(u => ({
+            id: `no-kyc-${u.id}`,
+            userId: u.id,
+            name: u.name || '-',
+            email: u.email || '-',
+            country: u.country || '-',
+            isDocumentVerified: false,
+            isAddressVerified: false,
+            verificationStatus: 'Pending',
+            documentReference: null,
+            addressReference: null,
+            documentSubmittedAt: null,
+            addressSubmittedAt: null,
+            createdAt: u.createdAt || null,
+          }));
+        merged = [...synth, ...fromKyc];
+      }
+      setRows(merged);
     }catch(e){ setErr(e.message||String(e)); }
     finally{ setLoading(false); }
   }

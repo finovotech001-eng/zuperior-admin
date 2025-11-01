@@ -144,7 +144,6 @@ export default function AssignRoles() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingAdmin, setEditingAdmin] = useState(null);
   const [showFeatureModal, setShowFeatureModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [selectedFeatures, setSelectedFeatures] = useState([]);
@@ -162,6 +161,10 @@ export default function AssignRoles() {
     description: "",
     features: []
   });
+  const [showRoleViewModal, setShowRoleViewModal] = useState(false);
+  const [showEditRoleModal, setShowEditRoleModal] = useState(false);
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [editRole, setEditRole] = useState({ name: "", description: "", features: [] });
   const [newAdmin, setNewAdmin] = useState({
     username: "",
     email: "",
@@ -217,6 +220,7 @@ export default function AssignRoles() {
         setError('Failed to fetch admins');
       }
     } catch (err) {
+      console.error(err);
       setError('Failed to fetch admins');
     } finally {
       setLoading(false);
@@ -232,6 +236,7 @@ export default function AssignRoles() {
       const data = await res.json();
       if (data?.ok) setRoles(data.roles || []);
     } catch (err) {
+      console.error(err);
       // ignore silently; UI can work without roles
     }
   };
@@ -318,6 +323,7 @@ export default function AssignRoles() {
         setError(errorMessage);
       }
     } catch (err) {
+      console.error(err);
       const errorMessage = 'Failed to create admin';
       setError(errorMessage);
       Swal.fire({
@@ -367,6 +373,7 @@ export default function AssignRoles() {
         });
       }
     } catch (err) {
+      console.error(err);
       const errorMessage = 'Failed to update role';
       setError(errorMessage);
       Swal.fire({
@@ -464,6 +471,7 @@ export default function AssignRoles() {
         });
       }
     } catch (err) {
+      console.error(err);
       const errorMessage = 'Failed to update password';
       setError(errorMessage);
       Swal.fire({
@@ -497,6 +505,7 @@ export default function AssignRoles() {
       setAdmins(prev => prev.filter(a => a.id !== adminUser.id));
       Swal.fire({ icon: 'success', title: 'Admin deleted', timer: 1500, showConfirmButton: false });
     } catch (err) {
+      console.error(err);
       Swal.fire({ icon: 'error', title: 'Delete failed', text: err.message || 'Unable to delete admin' });
     }
   };
@@ -574,6 +583,7 @@ export default function AssignRoles() {
         });
       }
     } catch (err) {
+      console.error(err);
       const errorMessage = 'Failed to create role';
       setError(errorMessage);
       Swal.fire({
@@ -756,10 +766,46 @@ export default function AssignRoles() {
                         <td className="px-3 sm:px-6 py-3 text-sm text-gray-600">{features.length} feature{features.length === 1 ? '' : 's'}</td>
                         <td className="px-3 sm:px-6 py-3 text-sm">
                           <div className="flex items-end gap-6">
-                            <button onClick={() => handleDeleteRole(r)} className="flex flex-col items-center text-red-600 hover:text-red-700">
-                              <Trash2 className="h-4 w-4" />
-                              <small className="text-[10px] leading-3 mt-1">Delete</small>
+                            <button 
+                              onClick={() => { setSelectedRole(r); setShowEditRoleModal(true); setEditRole({ name: r.name || '', description: r.description || '', features: (r.permissions?.features)||[] }); }} 
+                              className="flex flex-col items-center text-green-600 hover:text-green-700"
+                              title="Edit Features"
+                            >
+                              <Settings className="h-4 w-4" />
+                              <small className="text-[10px] leading-3 mt-1">Features</small>
                             </button>
+
+                            <button 
+                              onClick={() => { setSelectedRole(r); setShowRoleViewModal(true); }} 
+                              className="flex flex-col items-center text-blue-600 hover:text-blue-700"
+                              title="View Role"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <small className="text-[10px] leading-3 mt-1">View</small>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                Swal.fire({
+                                  icon: 'info',
+                                  title: 'Change Password',
+                                  text: 'Roles do not have passwords. Please change passwords from Admin Users.',
+                                  confirmButtonText: 'OK'
+                                });
+                              }}
+                              className="flex flex-col items-center text-orange-600 hover:text-orange-700"
+                              title="Change Password"
+                            >
+                              <Lock className="h-4 w-4" />
+                              <small className="text-[10px] leading-3 mt-1">Password</small>
+                            </button>
+
+                            {admin?.admin_role === 'superadmin' && (
+                              <button onClick={() => handleDeleteRole(r)} className="flex flex-col items-center text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                                <small className="text-[10px] leading-3 mt-1">Delete</small>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1002,12 +1048,28 @@ export default function AssignRoles() {
         {showCreateModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm backdrop-blur-enhanced flex items-center justify-center z-50 p-2 sm:p-4">
             <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Create New Admin</h3>
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setNewAdmin({
+                      username: "",
+                      email: "",
+                      password: "",
+                      admin_role: "admin",
+                      features: []
+                    });
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
               <form onSubmit={handleCreateAdmin} className="p-4 sm:p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Left Column - Basic Info */}
+                <div className="grid grid-cols-1 gap-6">
+                  {/* Basic Info */}
                   <div className="space-y-4">
                     <h4 className="text-md font-semibold text-gray-900 mb-4">Basic Information</h4>
                     
@@ -1074,45 +1136,6 @@ export default function AssignRoles() {
                             <option key={r.id} value={r.name}>{r.name}</option>
                           ))}
                       </select>
-                    </div>
-                  </div>
-
-                  {/* Right Column - Feature Assignment */}
-                  <div className="space-y-4">
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Feature Assignment</h4>
-                    
-                    <div className="space-y-3">
-                      {Object.entries(ADMIN_FEATURES).map(([roleType, features]) => (
-                        <div key={roleType} className="border border-gray-200 rounded-lg p-3">
-                          <h5 className="text-sm font-medium text-gray-700 mb-2 capitalize">{roleType} Features</h5>
-                          <div className="grid grid-cols-1 gap-2">
-                            {features.map((feature, index) => (
-                              <label key={index} className="flex items-center gap-2 text-sm">
-                                <input
-                                  type="checkbox"
-                                  checked={newAdmin.features.includes(feature.path)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setNewAdmin({
-                                        ...newAdmin,
-                                        features: [...newAdmin.features, feature.path]
-                                      });
-                                    } else {
-                                      setNewAdmin({
-                                        ...newAdmin,
-                                        features: newAdmin.features.filter(f => f !== feature.path)
-                                      });
-                                    }
-                                  }}
-                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                                />
-                                <feature.icon className="h-4 w-4 text-gray-500" />
-                                <span>{feature.name}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </div>
@@ -1352,7 +1375,9 @@ export default function AssignRoles() {
                         <div key={roleType} className="border border-gray-200 rounded-lg p-4">
                           <h4 className="text-sm font-semibold text-gray-700 mb-3 capitalize">{roleType} Features</h4>
                           <div className="space-y-2">
-                            {features.map((feature, index) => (
+                            {features
+                              .filter((feature) => feature.path !== 'assign-roles' && feature.path !== 'profile')
+                              .map((feature, index) => (
                               <label key={index} className="flex items-center gap-2 text-sm cursor-pointer">
                                 <input
                                   type="checkbox"
@@ -1406,6 +1431,149 @@ export default function AssignRoles() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Role Modal */}
+        {showRoleViewModal && selectedRole && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-enhanced flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Role: {selectedRole.name}</h3>
+                <button onClick={() => setShowRoleViewModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-4 sm:p-6">
+                <p className="text-sm text-gray-600 mb-4">{selectedRole.description || '—'}</p>
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Enabled Features</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(selectedRole.permissions?.features||[]).map((p, idx) => {
+                    const feature = FEATURE_MAP[p] || { name: p, icon: Settings };
+                    const Icon = feature.icon;
+                    return (
+                      <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                        <Icon className="h-3 w-3" />
+                        {feature.name}
+                      </span>
+                    );
+                  })}
+                  {(selectedRole.permissions?.features||[]).length === 0 && (
+                    <span className="text-sm text-gray-500">No features assigned.</span>
+                  )}
+                </div>
+                <div className="flex justify-end mt-6">
+                  <button onClick={() => setShowRoleViewModal(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-800">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Role Modal */}
+        {showEditRoleModal && selectedRole && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-enhanced flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Edit Role</h3>
+                <button onClick={() => setShowEditRoleModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-4 sm:p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role Name *</label>
+                    <input
+                      type="text"
+                      value={editRole.name}
+                      onChange={(e) => setEditRole({ ...editRole, name: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <input
+                      type="text"
+                      value={editRole.description}
+                      onChange={(e) => setEditRole({ ...editRole, description: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Select Features *</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(ADMIN_FEATURES).map(([roleType, features]) => (
+                      <div key={roleType} className="border border-gray-200 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3 capitalize">{roleType} Features</h4>
+                        <div className="space-y-2">
+                        {features
+                          .filter((feature) => feature.path !== 'assign-roles' && feature.path !== 'profile')
+                          .map((feature, index) => (
+                            <label key={index} className="flex items-center gap-2 text-sm cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={editRole.features.includes(feature.path)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setEditRole({ ...editRole, features: [...editRole.features, feature.path] });
+                                  } else {
+                                    setEditRole({ ...editRole, features: editRole.features.filter(f => f !== feature.path) });
+                                  }
+                                }}
+                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <feature.icon className="h-4 w-4 text-gray-500" />
+                              <span>{feature.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                  <button
+                    onClick={() => setShowEditRoleModal(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!editRole.name.trim() || editRole.features.length === 0) {
+                        Swal.fire({ icon: 'error', title: 'Role name and features are required' });
+                        return;
+                      }
+                      try {
+                        const token = localStorage.getItem('adminToken');
+                        const res = await fetch(`${BASE}/admin/roles/${selectedRole.id}`, {
+                          method: 'PUT',
+                          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ name: editRole.name, description: editRole.description, features: editRole.features })
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to update role');
+                        setRoles(prev => prev.map(r => r.id === selectedRole.id ? data.role : r));
+                        setShowEditRoleModal(false);
+                        setSelectedRole(null);
+                        Swal.fire({ icon: 'success', title: 'Role updated', timer: 1500, showConfirmButton: false });
+                      } catch (err) {
+                        Swal.fire({ icon: 'error', title: 'Update failed', text: err.message || 'Unable to update role' });
+                      }
+                    }}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    Save Changes
+                  </button>
+                </div>
               </div>
             </div>
           </div>

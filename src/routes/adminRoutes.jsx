@@ -127,7 +127,6 @@ export default [
 
   // Support Tickets
   { path: "support/open",    element: <SupportTicketsList status="opened" /> },
-  { path: "support/pending", element: <SupportTicketsList status="pending" /> },
   { path: "support/closed",  element: <SupportTicketsList status="closed" /> },
   { path: "support/tickets/:id", element: <SupportTicketView /> },
 

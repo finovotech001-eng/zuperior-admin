@@ -250,11 +250,23 @@ export default function Topbar({
               </div>
             </div> */}
 
-            {/* Role chip */}
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
-              <Shield className="h-3.5 w-3.5" />
-              {role === "superadmin" ? "SUPER ADMIN" : role.toUpperCase()}
-            </span>
+            {/* Role chip (uses actual admin role; supports custom roles) */}
+            {(() => {
+              const rawRole = admin?.admin_role || role;
+              const label = rawRole === 'superadmin'
+                ? 'SUPER ADMIN'
+                : String(rawRole)
+                    .split(/[ _-]/)
+                    .filter(Boolean)
+                    .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+                    .join(' ');
+              return (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
+                  <Shield className="h-3.5 w-3.5" />
+                  {label}
+                </span>
+              );
+            })()}
 
             {/* Notifications */}
             <button

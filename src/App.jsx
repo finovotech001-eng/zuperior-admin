@@ -6,6 +6,8 @@ import Login from "./pages/Login.jsx";
 import Setup from "./pages/Setup.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import adminRoutes from "./routes/adminRoutes.jsx";
+import AdminIndexRedirect from "./components/AdminIndexRedirect.jsx";
+import FeatureGuard from "./components/FeatureGuard.jsx";
 
 export default function App() {
   return (
@@ -26,10 +28,17 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          {adminRoutes.map((r) => (
-            <Route key={`ad-${r.path}`} path={r.path} element={r.element} />
-          ))}
-          <Route path="" element={<Navigate to="dashboard" replace />} />
+          {adminRoutes.map((r) => {
+            const topFeature = (r.path || '').split('/')[0];
+            return (
+              <Route
+                key={`ad-${r.path}`}
+                path={r.path}
+                element={<FeatureGuard feature={topFeature}>{r.element}</FeatureGuard>}
+              />
+            );
+          })}
+          <Route path="" element={<AdminIndexRedirect />} />
         </Route>
 
         {/* Root redirect */}

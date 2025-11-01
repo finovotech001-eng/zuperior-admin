@@ -1,7 +1,8 @@
 // src/components/Sidebar.jsx
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU, getMenuForRole } from "./SidebarMenuConfig.js";
+import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU, getMenuForRole, ROLE_FEATURES } from "./SidebarMenuConfig.js";
+import { useAuth } from "../contexts/AuthContext";
 import { ChevronDown } from "lucide-react";
 
 /* ---------- Section ---------- */
@@ -119,21 +120,60 @@ export default function Sidebar({
   onClose = () => {},
   className = "",
 }) {
+  const { admin } = useAuth();
+
+  const [customFeatures, setCustomFeatures] = useState(null); // null = unknown, [] = none
+  const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
+
+  useEffect(() => {
+    // If role isn't one of the built-ins, try resolving custom role features from backend
+    const builtin = ["superadmin", "admin", "moderator", "support", "analyst"];
+    const roleName = adminRole || admin?.admin_role;
+    if (!roleName || builtin.includes(roleName)) return;
+    const abort = new AbortController();
+    const token = localStorage.getItem('adminToken');
+    fetch(`${BASE}/admin/roles`, { headers: { 'Authorization': `Bearer ${token}` }, signal: abort.signal })
+      .then(r => r.json())
+      .then(data => {
+        const match = Array.isArray(data?.roles) ? data.roles.find(r => (r.name || '').toLowerCase() === String(roleName).toLowerCase()) : null;
+        const feats = match?.permissions?.features;
+        if (Array.isArray(feats)) setCustomFeatures(feats);
+      })
+      .catch(() => {});
+    return () => abort.abort();
+  }, [adminRole]);
+
+  const filterMenuByFeatures = useMemo(() => (features) => {
+    if (!Array.isArray(features) || features.length === 0) return [];
+    return ADMIN_MENU.map(section => ({
+      ...section,
+      items: section.items.filter(item => {
+        const path = (item.to || '').toString().split('/').pop() || item.to;
+        return features.includes(path);
+      }).map(it => ({
+        ...it,
+        children: Array.isArray(it.children) ? it.children.filter(child => {
+          const p = (child.to || '').toString().split('/').pop() || child.to;
+          return features.includes(p) || features.includes((it.to || '').toString().split('/').pop());
+        }) : it.children
+      }))
+    })).filter(section => section.items.length > 0);
+  }, []);
+
   const MENU = useMemo(() => {
-    console.log('Sidebar - role:', role, 'adminRole:', adminRole);
-    // Check if user is superadmin by adminRole
     if (adminRole === "superadmin") {
-      // Super admin gets full ADMIN_MENU without filtering
-      console.log('Using full ADMIN_MENU for superadmin');
       return ADMIN_MENU;
-    } else if (role === "admin") {
-      // Use role-based filtering for admin menu
-      console.log('Using filtered menu for role:', adminRole);
-      return getMenuForRole(adminRole);
-    } else {
+    }
+    if (role !== "admin") {
       return USER_MENU;
     }
-  }, [role, adminRole]);
+    // Prefer custom role features if present, else fallback to built-in mapping
+    const builtinFeatures = ROLE_FEATURES[adminRole];
+    const features = Array.isArray(customFeatures) && customFeatures.length > 0 ? customFeatures : builtinFeatures;
+    if (Array.isArray(features) && features.length) return filterMenuByFeatures(features);
+    // final fallback: minimal safe menu (dashboard only)
+    return filterMenuByFeatures(["dashboard"]);
+  }, [role, adminRole, customFeatures, filterMenuByFeatures]);
 
   // Force light mode
   const isDark = false;
