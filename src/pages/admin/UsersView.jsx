@@ -4,6 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import { Users, Wallet, Download, Upload, ShieldCheck } from "lucide-react";
 import ProTable from "../../components/ProTable.jsx";
 import Modal from "../../components/Modal.jsx";
+import Badge from "../../components/Badge.jsx";
 import Swal from "sweetalert2";
 
 function Stat({ icon:Icon, label, value, tone }) {
@@ -48,6 +49,22 @@ export default function UsersView(){
     }
   }, [mt5Map]);
 
+  // Real vs Demo split by group name
+  const { realBalance, demoBalance, realEquity, demoEquity } = useMemo(() => {
+    let rb=0, db=0, re=0, de=0;
+    Object.values(mt5Map).forEach(v => {
+      const isDemo = String(v?.group||'').toLowerCase().includes('demo');
+      if (isDemo) {
+        db += Number(v?.balance||0);
+        de += Number(v?.equity||0);
+      } else {
+        rb += Number(v?.balance||0);
+        re += Number(v?.equity||0);
+      }
+    });
+    return { realBalance: rb, demoBalance: db, realEquity: re, demoEquity: de };
+  }, [mt5Map]);
+
   const fetchUser = useCallback(()=>{
     let stop=false;
     fetch(`${BASE}/admin/users/${id}`)
@@ -84,9 +101,10 @@ export default function UsersView(){
             const res = await fetch(`${BASE}/admin/mt5/proxy/${a.accountId}/getClientProfile`, { headers: { 'Authorization': `Bearer ${token}` } });
             const j = await res.json();
             const d = j?.data?.Data || j?.data || {};
-            return [a.accountId, { balance: Number(d.Balance||0), equity: Number(d.Equity||0) }];
+            const levRaw = d.LeverageInCents ? Number(d.LeverageInCents)/100 : (d.Leverage || null);
+            return [a.accountId, { balance: Number(d.Balance||0), equity: Number(d.Equity||0), group: d.Group || d.GroupName || '-', leverage: levRaw }];
           } catch {
-            return [a.accountId, { balance: 0, equity: 0 }];
+            return [a.accountId, { balance: 0, equity: 0, group: '-', leverage: null }];
           }
         })
       );
@@ -117,9 +135,11 @@ export default function UsersView(){
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat icon={Wallet} label="Account Balance" value={`$${totalMt5Balance.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`} tone="bg-violet-100 text-violet-700" />
-        <Stat icon={Wallet} label="Total Equity" value={`$${totalMt5Equity.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`} tone="bg-blue-100 text-blue-700" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <Stat icon={Wallet} label="Real Balance" value={`$${realBalance.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`} tone="bg-violet-100 text-violet-700" />
+        <Stat icon={Wallet} label="Demo Balance" value={`$${demoBalance.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`} tone="bg-fuchsia-100 text-fuchsia-700" />
+        <Stat icon={Wallet} label="Real Equity" value={`$${realEquity.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`} tone="bg-blue-100 text-blue-700" />
+        <Stat icon={Wallet} label="Demo Equity" value={`$${demoEquity.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`} tone="bg-cyan-100 text-cyan-700" />
         <Stat icon={Download} label="Total Deposits" value={`$${t.deposits.amount.toLocaleString()} (${t.deposits.count})`} tone="bg-emerald-100 text-emerald-700" />
         <Stat icon={Upload} label="Total Withdrawals" value={`$${t.withdrawals.amount.toLocaleString()} (${t.withdrawals.count})`} tone="bg-rose-100 text-rose-700" />
         <Stat icon={ShieldCheck} label="Email Verified" value={u.emailVerified ? 'Yes' : 'No'} tone={u.emailVerified?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-800'} />
@@ -150,40 +170,57 @@ export default function UsersView(){
         </div>
       </div>
 
-      {/* MT5 Accounts full width */}
+      {/* MT5 Accounts full width using ProTable */}
       <div className="rounded-2xl bg-white border border-gray-200 shadow-sm">
-          <div className="px-5 pt-4 pb-2 text-sm font-semibold">MT5 Accounts</div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-gray-700 uppercase text-xs tracking-wider">
-                <tr>
-                <th className="px-4 py-2 text-left">Account ID</th>
-                <th className="px-4 py-2 text-left">Balance</th>
-                <th className="px-4 py-2 text-left">Equity</th>
-                <th className="px-4 py-2 text-left">Created</th>
-                <th className="px-4 py-2 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {u.MT5Account?.length ? u.MT5Account.map(a=> (
-                  <tr key={a.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2">{a.accountId}</td>
-                    <td className="px-4 py-2">${(mt5Map[a.accountId]?.balance || 0).toFixed(2)}</td>
-                    <td className="px-4 py-2">${(mt5Map[a.accountId]?.equity || 0).toFixed(2)}</td>
-                    <td className="px-4 py-2">{fmt(a.createdAt)}</td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <button onClick={()=> setActionModal({ type:'deposit', accountId: a.accountId, amount:'', comment:'Admin deposit' })}
-                                className="px-2 py-1 rounded-full bg-emerald-600 text-white text-xs hover:bg-emerald-700 shadow-sm">Deposit</button>
-                        <button onClick={()=> setActionModal({ type:'withdraw', accountId: a.accountId, amount:'', comment:'Admin withdrawal' })}
-                                className="px-2 py-1 rounded-full bg-rose-600 text-white text-xs hover:bg-rose-700 shadow-sm">Withdraw</button>
-                      </div>
-                    </td>
-                  </tr>
-                )) : <tr><td className="px-4 py-4" colSpan={5}>No MT5 accounts</td></tr>}
-              </tbody>
-            </table>
+        <div className="px-5 pt-4 pb-2 text-sm font-semibold">MT5 Accounts</div>
+        <div className="p-4">
+          <ProTable
+            rows={(u.MT5Account||[]).map((a, idx) => ({
+              __index: idx+1,
+              accountId: a.accountId,
+              group: mt5Map[a.accountId]?.group || '-',
+              leverage: mt5Map[a.accountId]?.leverage ? `1:${Number(mt5Map[a.accountId]?.leverage).toFixed(0)}` : '-',
+              balance: `$${(mt5Map[a.accountId]?.balance || 0).toFixed(2)}`,
+              equity: `$${(mt5Map[a.accountId]?.equity || 0).toFixed(2)}`,
+              createdAt: fmt(a.createdAt),
+              _raw: a,
+            }))}
+            columns={[
+              { key: '__index', label: 'Sr No', sortable: false },
+              { key: 'accountId', label: 'Account ID' },
+              { key: 'group', label: 'Group', render: (v) => {
+                const groupName = v || '-';
+                const isDemo = String(groupName).toLowerCase().includes('demo');
+                return <Badge tone={isDemo ? 'green' : 'blue'}>{groupName}</Badge>;
+              }},
+              { key: 'leverage', label: 'Leverage' },
+              { key: 'balance', label: 'Balance' },
+              { key: 'equity', label: 'Equity' },
+              { key: 'createdAt', label: 'Created' },
+              { key: 'actions', label: 'Actions', sortable: false, render: (v, row) => (
+                <div className="flex items-center gap-2">
+                  <button onClick={()=> setActionModal({ type:'deposit', accountId: row.accountId, amount:'', comment:'Admin deposit' })}
+                          className="px-2 py-1 rounded-full bg-emerald-600 text-white text-xs hover:bg-emerald-700 shadow-sm">Deposit</button>
+                  <button onClick={()=> setActionModal({ type:'withdraw', accountId: row.accountId, amount:'', comment:'Admin withdrawal' })}
+                          className="px-2 py-1 rounded-full bg-rose-600 text-white text-xs hover:bg-rose-700 shadow-sm">Withdraw</button>
+                </div>
+              ) },
+            ]}
+            pageSize={5}
+            searchPlaceholder="Search by account, group…"
+            filters={{ searchKeys: ['accountId','group'] }}
+          />
+          <div className="px-4 pb-4 text-xs text-gray-600 flex items-center gap-4">
+            <span className="flex items-center gap-2">
+              <Badge tone="green">Demo</Badge>
+              <span>accounts are marked as demo</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <Badge tone="blue">Real</Badge>
+              <span>accounts are marked as real</span>
+            </span>
           </div>
+        </div>
       </div>
 
       {/* Login Activity */}

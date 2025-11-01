@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Menu, Shield, Bell, Search, ChevronDown, User, LogOut } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU } from "./SidebarMenuConfig.js";
+import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU, ROLE_FEATURES } from "./SidebarMenuConfig.js";
 
 /**
  * Props
@@ -22,6 +22,7 @@ export default function Topbar({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [customFeatures, setCustomFeatures] = useState(null);
   const menuRef = useRef(null);
   const searchRef = useRef(null);
   const location = useLocation();
@@ -29,19 +30,54 @@ export default function Topbar({
   const { admin, logout } = useAuth();
   // Light theme: use plain white background (no gradient)
 
-  // Get menu items based on role
-  const getMenuItems = () => {
-    switch (role) {
-      case "superadmin": return SUPERADMIN_MENU;
-      case "admin": return ADMIN_MENU;
-      case "user": return USER_MENU;
-      default: return [];
-    }
+  // Resolve accessible menu (respects custom role features just like Sidebar)
+  const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
+  useEffect(() => {
+    const builtin = ["superadmin", "admin", "moderator", "support", "analyst"];
+    const roleName = admin?.admin_role;
+    if (!roleName || builtin.includes(roleName)) return;
+    const abort = new AbortController();
+    const token = localStorage.getItem('adminToken');
+    fetch(`${BASE}/admin/roles`, { headers: { 'Authorization': `Bearer ${token}` }, signal: abort.signal })
+      .then(r => r.json())
+      .then(data => {
+        const match = Array.isArray(data?.roles) ? data.roles.find(r => (r.name || '').toLowerCase() === String(roleName).toLowerCase()) : null;
+        const feats = match?.permissions?.features;
+        if (Array.isArray(feats)) setCustomFeatures(feats);
+      }).catch(()=>{});
+    return () => abort.abort();
+  }, [admin?.admin_role]);
+
+  const filterMenuByFeatures = (features) => {
+    if (!Array.isArray(features) || features.length === 0) return [];
+    return ADMIN_MENU.map(section => ({
+      ...section,
+      items: section.items.filter(item => {
+        const path = (item.to || '').toString().split('/').pop() || item.to;
+        return features.includes(path);
+      }).map(it => ({
+        ...it,
+        children: Array.isArray(it.children) ? it.children.filter(child => {
+          const p = (child.to || '').toString().split('/').pop() || child.to;
+          return features.includes(p) || features.includes((it.to || '').toString().split('/').pop());
+        }) : it.children
+      }))
+    })).filter(section => section.items.length > 0);
   };
 
-  // Flatten menu items for search - only sidebar features
+  const accessibleMenu = (() => {
+    if (role === "superadmin") return SUPERADMIN_MENU;
+    if (role === "user") return USER_MENU;
+    const roleName = admin?.admin_role || 'admin';
+    const builtinFeatures = ROLE_FEATURES[roleName];
+    const features = Array.isArray(customFeatures) && customFeatures.length > 0 ? customFeatures : builtinFeatures;
+    if (Array.isArray(features) && features.length) return filterMenuByFeatures(features);
+    return filterMenuByFeatures(["dashboard"]);
+  })();
+
+  // Flatten menu items for search - only currently accessible sidebar features
   const getAllMenuItems = () => {
-    const menuItems = getMenuItems();
+    const menuItems = accessibleMenu;
     const items = [];
     
     menuItems.forEach(section => {
@@ -209,7 +245,7 @@ export default function Topbar({
                       >
                         <div className="flex items-center gap-3">
                           {item.icon && (
-                            <item.icon className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                            <item.icon className="h-4 w-4 text-gray-500 shrink-0" />
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="text-gray-900 font-medium text-sm truncate">{item.label}</div>
@@ -217,8 +253,8 @@ export default function Topbar({
                               {item.parent ? `${item.section} > ${item.parent}` : item.section}
                             </div>
                           </div>
-                          <div className="text-gray-500 group-hover:text-gray-700 transition-colors flex-shrink-0">
-                            <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
+                          <div className="text-gray-500 group-hover:text-gray-700 transition-colors shrink-0">
+                            <ChevronDown className="h-4 w-4 -rotate-90" />
                           </div>
                         </div>
                       </button>
