@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Eye, Settings, Lock, Trash2 } from "lucide-react";
 import Modal from "../../components/Modal.jsx";
+import ProTable from "../../components/ProTable.jsx";
 import Swal from "sweetalert2";
 
 const FEATURE_LABELS = {
@@ -46,15 +47,14 @@ function prettyFeatureLabel(slug) {
 
 export default function AssignedCountryAdmins() {
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
-  useEffect(() => { fetchData(); }, [/* mount only */]);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
-    setLoading(true);
+    
     try {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${BASE}/admin/country-admins`, {
@@ -67,7 +67,7 @@ export default function AssignedCountryAdmins() {
     } catch {
       setRows([]);
     }
-    setLoading(false);
+    
   };
 
   async function onDelete(row){
@@ -87,83 +87,58 @@ export default function AssignedCountryAdmins() {
     if (!r.ok || j?.ok===false) throw new Error(j?.error||'Failed');
   }
 
+  const columns = useMemo(() => [
+    { key: "__index", label: "Sr No" },
+    { key: "name", label: "Name" },
+    { key: "email", label: "Email" },
+    { key: "status", label: "Status", render: (v) => (
+      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${String(v).toLowerCase()==='active' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>{v}</span>
+    ) },
+    { key: "country", label: "Country", render: (v, row) => String(v || row.country_code || '').toUpperCase() },
+    { key: "features", label: "Features", render: (v) => (
+      <div className="flex flex-wrap gap-1 justify-center">
+        {(Array.isArray(v) && v.length) ? v.map((slug,i)=> (
+          <span key={i} className="inline-block rounded-lg px-2 py-1 bg-purple-100 text-purple-800 text-xs font-semibold whitespace-nowrap">{prettyFeatureLabel(slug)}</span>
+        )) : <span className="text-gray-400 text-xs">None</span>}
+      </div>
+    ) },
+    { key: "actions", label: "Actions", sortable:false, render: (v, row) => (
+      <div className="flex items-end gap-4 justify-center">
+        <button onClick={()=>setEditing(row)} className="flex flex-col items-center text-green-600 hover:text-green-800" title="Edit Features">
+          <Settings className="h-4 w-4" />
+          <small className="text-[10px] leading-3 mt-1">Features</small>
+        </button>
+        <button onClick={()=>setViewing(row)} className="flex flex-col items-center text-blue-600 hover:text-blue-800" title="View">
+          <Eye className="h-4 w-4" />
+          <small className="text-[10px] leading-3 mt-1">View</small>
+        </button>
+        <button onClick={async ()=>{
+          const { value: pwd } = await Swal.fire({ title:'Change Password', input:'password', inputLabel:'New Password', showCancelButton:true });
+          if (!pwd) return; try { await onPassword(row, pwd); Swal.fire({ icon:'success', title:'Password updated', timer:1500, showConfirmButton:false }); } catch(e){ Swal.fire({ icon:'error', title:'Failed', text:e.message||'Unable to update' }); }
+        }} className="flex flex-col items-center text-orange-600 hover:text-orange-800" title="Password">
+          <Lock className="h-4 w-4" />
+          <small className="text-[10px] leading-3 mt-1">Password</small>
+        </button>
+        <button onClick={()=>onDelete(row)} className="flex flex-col items-center text-red-600 hover:text-red-800" title="Delete">
+          <Trash2 className="h-4 w-4" />
+          <small className="text-[10px] leading-3 mt-1">Delete</small>
+        </button>
+      </div>
+    ) },
+  ], []);
+
+  const mapped = rows.map(r => ({ ...r, actions: true }));
+
   return (
     <div className="min-h-screen w-full px-2 md:px-8 py-6 md:py-10 bg-gray-100">
-      <h2 className="text-2xl font-bold mb-6">Assigned Country Admins</h2>
-      {loading ? (
-        <div className="bg-white shadow-xl w-full p-8 text-lg font-medium text-center">Loading...</div>
-      ) : rows.length === 0 ? (
-        <div className="bg-white shadow-xl w-full p-8 text-lg font-medium text-center">No country admins found.</div>
-      ) : (
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left bg-white shadow-xl rounded-2xl border-separate border-spacing-y-0.5">
-            <thead className="bg-gray-50">
-              <tr className="text-md">
-                <th className="py-3 px-4 font-semibold">Sr No.</th>
-                <th className="py-3 px-4 font-semibold">Name</th>
-                <th className="px-4 font-semibold">Email</th>
-                <th className="px-4 font-semibold">Status</th>
-                <th className="px-4 font-semibold">Country</th>
-                <th className="px-4 font-semibold">Features</th>
-                <th className="px-4 font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, idx) => (
-                <tr key={row.id} className={idx%2===1 ? "bg-gray-50 hover:bg-purple-50" : "hover:bg-purple-50"}>
-                  <td className="py-3 px-4 text-gray-700 font-semibold">{idx + 1}</td>
-                  <td className="py-3 px-4 font-medium text-sm md:text-base">{row.name}</td>
-                  <td className="px-4 text-sm md:text-base">{row.email}</td>
-                  <td className="px-4 text-xs capitalize">{row.status}</td>
-                  <td className="px-4 text-sm uppercase">{row.country}</td>
-                  <td className="px-4">
-                    <div className="flex flex-wrap gap-1 max-w-xl">
-                      {(row.features && row.features.length)
-                        ? row.features.map((slug, i) => (
-                            <span key={slug||i} className="inline-block rounded-lg px-2 py-1 bg-purple-100 text-purple-800 text-xs font-semibold whitespace-nowrap">
-                              {prettyFeatureLabel(slug)}
-                            </span>
-                          ))
-                        : <span className="text-gray-400 text-xs">None</span>}
-                    </div>
-                  </td>
-                  <td className="px-4">
-                    <div className="flex items-end gap-4">
-                      <button onClick={()=>setEditing(row)} className="flex flex-col items-center text-green-600 hover:text-green-800" title="Edit Features">
-                        <Settings className="h-4 w-4" />
-                        <small className="text-[10px] leading-3 mt-1">Features</small>
-                      </button>
-                      <button onClick={()=>setViewing(row)} className="flex flex-col items-center text-blue-600 hover:text-blue-800" title="View">
-                        <Eye className="h-4 w-4" />
-                        <small className="text-[10px] leading-3 mt-1">View</small>
-                      </button>
-                      <button onClick={async ()=>{
-                        const { value: pwd } = await Swal.fire({
-                          title: 'Change Password',
-                          input: 'password',
-                          inputLabel: 'New Password',
-                          inputAttributes: { autocapitalize:'off' },
-                          showCancelButton: true
-                        });
-                        if (!pwd) return;
-                        try { await onPassword(row, pwd); Swal.fire({ icon:'success', title:'Password updated', timer:1500, showConfirmButton:false }); } 
-                        catch(e){ Swal.fire({ icon:'error', title:'Failed', text:e.message||'Unable to update' }); }
-                      }} className="flex flex-col items-center text-orange-600 hover:text-orange-800" title="Password">
-                        <Lock className="h-4 w-4" />
-                        <small className="text-[10px] leading-3 mt-1">Password</small>
-                      </button>
-                      <button onClick={()=>onDelete(row)} className="flex flex-col items-center text-red-600 hover:text-red-800" title="Delete">
-                        <Trash2 className="h-4 w-4" />
-                        <small className="text-[10px] leading-3 mt-1">Delete</small>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ProTable
+        title="Assigned Country Admins"
+        rows={mapped}
+        columns={columns}
+        filters={{ searchKeys:["name","email","country","status"] }}
+        pageSize={10}
+        searchPlaceholder="Search name / email / country / status…"
+      />
 
       {/* View Modal */}
       <Modal open={!!viewing} onClose={()=>setViewing(null)} title="Country Admin Details">

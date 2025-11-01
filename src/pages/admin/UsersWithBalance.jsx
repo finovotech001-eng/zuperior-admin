@@ -60,6 +60,7 @@ export default function UsersWithBalance() {
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [accountsError, setAccountsError] = useState("");
   const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
+  const [actionModal, setActionModal] = useState(null); // { type:'deposit'|'withdraw', accountId, amount:'', comment:'' }
 
   const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
@@ -345,6 +346,7 @@ export default function UsersWithBalance() {
                       <th className="border border-gray-300 px-4 py-2">Margin Level</th>
                       <th className="border border-gray-300 px-4 py-2">Profit</th>
                       <th className="border border-gray-300 px-4 py-2">Currency</th>
+                      <th className="border border-gray-300 px-4 py-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -366,6 +368,16 @@ export default function UsersWithBalance() {
                           ${account.profit.toFixed(2)}
                         </td>
                         <td className="border border-gray-300 px-4 py-2">{account.currency}</td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={()=> setActionModal({ type:'deposit', accountId: account.accountId, amount:'', comment:'Admin deposit' })}
+                              className="px-2 py-1 rounded-md bg-emerald-600 text-white text-xs hover:bg-emerald-700">Deposit</button>
+                            <button
+                              onClick={()=> setActionModal({ type:'withdraw', accountId: account.accountId, amount:'', comment:'Admin withdrawal' })}
+                              className="px-2 py-1 rounded-md bg-rose-600 text-white text-xs hover:bg-rose-700">Withdraw</button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -382,6 +394,46 @@ export default function UsersWithBalance() {
             )}
             <div className="flex justify-end gap-2">
               <button onClick={() => setViewModal(null)} className="px-4 h-10 rounded-md border">Close</button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Deposit/Withdraw Modal */}
+      <Modal open={!!actionModal} onClose={()=>setActionModal(null)} title={actionModal ? (actionModal.type==='deposit' ? 'Add Balance' : 'Deduct Balance') : ''}>
+        {actionModal && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (USD)</label>
+              <input type="number" min="0" step="0.01" value={actionModal.amount}
+                     onChange={e=>setActionModal({ ...actionModal, amount: e.target.value })}
+                     className="w-full rounded-md border border-gray-300 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+              <input type="text" value={actionModal.comment}
+                     onChange={e=>setActionModal({ ...actionModal, comment: e.target.value })}
+                     className="w-full rounded-md border border-gray-300 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={()=>setActionModal(null)} className="px-4 h-10 rounded-md border">Cancel</button>
+              <button onClick={async ()=>{
+                const amt = Number(actionModal.amount);
+                if (!amt || amt<=0) { Swal.fire({ icon:'error', title:'Enter amount' }); return; }
+                try {
+                  const token = localStorage.getItem('adminToken');
+                  const url = actionModal.type==='deposit' ? `${BASE}/admin/mt5/deposit` : `${BASE}/admin/mt5/withdraw`;
+                  const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${token}` }, body: JSON.stringify({ login: actionModal.accountId, amount: amt, description: actionModal.comment }) });
+                  const j = await r.json();
+                  if (!j?.ok) throw new Error(j?.error||'Failed');
+                  setActionModal(null);
+                  Swal.fire({ icon:'success', title: actionModal.type==='deposit' ? 'Deposit successful' : 'Withdrawal successful', timer:1500, showConfirmButton:false });
+                } catch(e) {
+                  Swal.fire({ icon:'error', title: actionModal.type==='deposit' ? 'Deposit failed' : 'Withdrawal failed', text:e.message||String(e) });
+                }
+              }} className={`px-4 h-10 rounded-md text-white ${actionModal.type==='deposit' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}>
+                {actionModal.type==='deposit' ? 'Deposit' : 'Withdraw'}
+              </button>
             </div>
           </div>
         )}

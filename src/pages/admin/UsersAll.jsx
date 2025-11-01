@@ -1,5 +1,6 @@
 // src/pages/admin/UsersAll.jsx
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import ProTable from "../../components/ProTable.jsx";
 import Modal from "../../components/Modal.jsx";
@@ -21,15 +22,36 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
   const [confirmDel, setConfirmDel] = useState(null); // row
   const [confirmVerify, setConfirmVerify] = useState(null); // {row,next}
   const [confirmBan, setConfirmBan] = useState(null); // {row,next}
+  const [countryScope, setCountryScope] = useState("");
   const navigate = useNavigate();
 
   const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
+  const { admin } = useAuth();
+
+  useEffect(() => {
+    // Resolve country scope if logged-in email matches a country admin
+    const token = localStorage.getItem('adminToken');
+    const email = admin?.email;
+    if (!email) return;
+    let cancelled = false;
+    fetch(`${BASE}/admin/country-admins`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(list => {
+        if (cancelled) return;
+        const match = Array.isArray(list) ? list.find(ca => (ca.email||'').toLowerCase() === String(email).toLowerCase()) : null;
+        if (match?.country) setCountryScope(String(match.country).toLowerCase());
+      })
+      .catch(()=>{});
+    return () => { cancelled = true; };
+  }, [BASE, admin?.email]);
 
   useEffect(() => {
     let stop = false;
     setLoading(true);
     setError("");
-    const search = new URLSearchParams({ limit: '500', ...Object.fromEntries(Object.entries(queryParams).map(([k,v])=>[k,String(v)])) });
+    const withScope = { ...queryParams };
+    if (countryScope) withScope.country = countryScope;
+    const search = new URLSearchParams({ limit: '500', ...Object.fromEntries(Object.entries(withScope).map(([k,v])=>[k,String(v)])) });
     const token = localStorage.getItem('adminToken');
     fetch(`${BASE}/admin/users/all?${search.toString()}`, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -57,7 +79,7 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
       .catch(e => setError(e.message || String(e)))
       .finally(() => !stop && setLoading(false));
     return () => { stop = true; };
-  }, [BASE, JSON.stringify(queryParams)]);
+  }, [BASE, JSON.stringify(queryParams), countryScope]);
 
   const columns = useMemo(() => [
     { key: "__index", label: "Sr No", sortable: false },

@@ -51,7 +51,6 @@ export default function UsersView(){
           </div>
           <div className="flex gap-2">
             <Link to="/admin/users/all" className="px-4 h-10 rounded-md border">Back to All Users</Link>
-            <a href={`mailto:${u.email}`} className="px-4 h-10 rounded-md bg-violet-600 text-white">Contact</a>
           </div>
         </div>
       </div>

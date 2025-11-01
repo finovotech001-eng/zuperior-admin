@@ -1,5 +1,6 @@
 // src/pages/admin/AdminDashboard.jsx
 import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   Users, Download, Upload, Shield, Database, TrendingUp, TrendingDown,
   DollarSign, Clock, AlertCircle, CheckCircle, XCircle, Mail, UserX,
@@ -162,6 +163,27 @@ export default function AdminDashboard() {
   const [bulkLogsError, setBulkLogsError] = useState("");
 
   const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
+  const { admin } = useAuth();
+  const [countryScope, setCountryScope] = useState("");
+  const [scopeResolved, setScopeResolved] = useState(false);
+
+  useEffect(() => {
+    // resolve assigned country for current admin (if country partner)
+    const token = localStorage.getItem('adminToken');
+    const email = admin?.email;
+    if (!email) return;
+    let cancelled = false;
+    fetch(`${BASE}/admin/country-admins`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(list => {
+        if (cancelled) return;
+        const match = Array.isArray(list) ? list.find(ca => (ca.email||'').toLowerCase() === String(email).toLowerCase()) : null;
+        if (match?.country) setCountryScope(String(match.country).toLowerCase());
+        setScopeResolved(true);
+      })
+      .catch(()=>{ setScopeResolved(true); });
+    return () => { cancelled = true; };
+  }, [BASE, admin?.email]);
 
   // Fetch dashboard data from database
   const fetchDashboardData = useCallback(async () => {
@@ -175,24 +197,25 @@ export default function AdminDashboard() {
       }
 
       // Fetch all data in parallel using correct API endpoints
+      const scope = countryScope ? `&country=${encodeURIComponent(countryScope)}` : '';
       const [usersRes, depositsRes, withdrawalsRes, kycRes, mt5Res] = await Promise.all([
-        fetch(`${BASE}/admin/users/all?limit=1000`, {
+        fetch(`${BASE}/admin/users/all?limit=1000${scope}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json()).catch(() => ({ ok: false, items: [] })),
         
-        fetch(`${BASE}/admin/deposits`, {
+        fetch(`${BASE}/admin/deposits?limit=1000${scope}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json()).catch(() => ({ ok: false, items: [] })),
         
-        fetch(`${BASE}/admin/withdrawals`, {
+        fetch(`${BASE}/admin/withdrawals?limit=1000${scope}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json()).catch(() => ({ ok: false, items: [] })),
         
-        fetch(`${BASE}/admin/kyc`, {
+        fetch(`${BASE}/admin/kyc?limit=1000${scope}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json()).catch(() => ({ ok: false, items: [] })),
         
-        fetch(`${BASE}/admin/mt5/users`, {
+        fetch(`${BASE}/admin/mt5/users?limit=1000${scope}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json()).catch(() => ({ ok: false, items: [] }))
       ]);
@@ -301,7 +324,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [BASE]);
+  }, [BASE, countryScope]);
 
   // Fetch bulk operation logs
   const fetchBulkLogs = useCallback(async () => {
@@ -314,9 +337,8 @@ export default function AdminDashboard() {
         throw new Error('No authentication token found');
       }
 
-      const params = new URLSearchParams({
-        limit: '500'
-      });
+      const params = new URLSearchParams({ limit: '500' });
+      if (countryScope) params.set('country', countryScope);
 
       const response = await fetch(`${BASE}/admin/activity-logs?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -352,9 +374,10 @@ export default function AdminDashboard() {
   }, [BASE]);
 
   useEffect(() => {
+    if (!scopeResolved) return;
     fetchDashboardData();
     fetchBulkLogs();
-  }, [fetchDashboardData, fetchBulkLogs]);
+  }, [fetchDashboardData, fetchBulkLogs, scopeResolved]);
 
   if (loading) {
   return (
