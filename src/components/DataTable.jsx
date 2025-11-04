@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Inbox } from "lucide-react";
 
 export default function DataTable({ columns, rows, data, pageSize=10 }) {
   const [q, setQ] = useState("");
@@ -69,9 +70,14 @@ export default function DataTable({ columns, rows, data, pageSize=10 }) {
               </tr>
             ))}
             {!slice.length && (
-              <tr><td colSpan={columns.length} className="px-4 py-6 text-center text-slate-300">
-                No data
-              </td></tr>
+              <tr>
+                <td colSpan={columns.length} className="px-4 py-10 text-center">
+                  <div className="flex items-center justify-center gap-2 text-slate-400">
+                    <Inbox size={18} />
+                    <span>No data found</span>
+                  </div>
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

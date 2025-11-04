@@ -2,6 +2,10 @@
 import BrandCard from "../components/BrandCard.jsx";
 import ProTable from "../components/ProTable.jsx";
 import EmptyState from "../components/EmptyState.jsx";
+import ReportsBookPnL from "../pages/admin/ReportsBookPnL.jsx";
+import ReportsProfitLoss from "../pages/admin/ReportsProfitLoss.jsx";
+import ReportsLPStatement from "../pages/admin/ReportsLPStatement.jsx";
+import ReportsPartnerReport from "../pages/admin/ReportsPartnerReport.jsx";
 import KycList from "../pages/admin/KycList.jsx";
 import Dashboard from "../pages/admin/Dashboard.jsx";
 import UsersAll from "../pages/admin/UsersAll.jsx";
@@ -43,10 +47,10 @@ export default [
   { path: "my-deals",      element: <EmptyState title="My Deals" subtitle="My executed trades" /> },
 
   /* ----------------------------- REPORTS ------------------------------ */
-  { path: "book-pnl",      element: <EmptyState title="Book PnL" subtitle="Performance by book" /> },
-  { path: "finance",       element: <EmptyState title="Profit & Loss" subtitle="PnL breakdown" /> },
-  { path: "lp-statement",  element: <EmptyState title="LP Statement" subtitle="Liquidity provider statements" /> },
-  { path: "ib-dashboard",  element: <EmptyState title="Partner Report" subtitle="IB performance" /> },
+  { path: "book-pnl",      element: <ReportsBookPnL /> },
+  { path: "finance",       element: <ReportsProfitLoss /> },
+  { path: "lp-statement",  element: <ReportsLPStatement /> },
+  { path: "ib-dashboard",  element: <ReportsPartnerReport /> },
 
   /* ------------------------ CLIENTS & ACCESS -------------------------- */
   { path: "users",                     element: <EmptyState title="Manage Users" subtitle="User management overview" /> },

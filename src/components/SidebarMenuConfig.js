@@ -9,11 +9,15 @@ import {
 export const ROLE_FEATURES = {
   superadmin: [
     'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
-    'payment-gateways', 'payment-details', 'bulk-logs', 'assign-roles', 'profile'
+    'payment-gateways', 'payment-details', 'bulk-logs', 'assign-roles', 'profile',
+    // reports
+    'reports', 'book-pnl', 'finance', 'lp-statement', 'ib-dashboard'
   ],
   admin: [
     'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
-    'payment-gateways', 'payment-details', 'bulk-logs'
+    'payment-gateways', 'payment-details', 'bulk-logs',
+    // reports
+    'reports', 'book-pnl', 'finance', 'lp-statement', 'ib-dashboard'
   ],
   moderator: [
     'dashboard', 'users', 'kyc', 'bulk-logs'
@@ -185,19 +189,22 @@ export const ADMIN_MENU = [
   //     },
   //   ],
   // },
- 
-  
- 
- 
-  // {
-  //   label: "REPORTS",
-  //   items: [
-  //     { icon: BarChart3, label: "Book PnL", to: "book-pnl" },
-  //     { icon: Calculator, label: "Profit & Loss", to: "finance" },
-  //     { icon: FileText, label: "LP Statement", to: "lp-statement" },
-  //     { icon: ClipboardList, label: "Partner Report", to: "ib-dashboard" },
-  //   ],
-  // },
+  {
+    label: "REPORTS",
+    items: [
+      {
+        icon: BarChart3,
+        label: "Reports",
+        to: "reports",
+        children: [
+          { label: "Book PnL", to: "book-pnl", icon: Calculator },
+          { label: "Profit & Loss", to: "finance", icon: BarChart3 },
+          { label: "LP Statement", to: "lp-statement", icon: FileText },
+          { label: "Partner Report", to: "ib-dashboard", icon: ClipboardList },
+        ],
+      },
+    ],
+  },
   {
     label: "COUNTRY PARTNER ADMIN",
     items: [

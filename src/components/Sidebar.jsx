@@ -66,7 +66,11 @@ function Section({ title, items, pathname, openMap, onToggle, onNavigate, isDark
                           }`
                         }
                       >
-                        <span className={`shrink-0 h-1.5 w-1.5 rounded-full ${dotCls}`} />
+                        {child.icon ? (
+                          <child.icon size={16} className="shrink-0 opacity-80" />
+                        ) : (
+                          <span className={`shrink-0 h-1.5 w-1.5 rounded-full ${dotCls}`} />
+                        )}
                         <span className="truncate">{child.label}</span>
                       </NavLink>
                     ))}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Inbox } from "lucide-react";
 import Badge from "./Badge.jsx";
 
 /**
@@ -173,7 +174,14 @@ export default function ProTable({ title, kpis=[], rows=[], columns=[], filters,
                 </tr>
               ))}
               {!slice.length && (
-                <tr><td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500 bg-gray-50">No data available</td></tr>
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500 bg-gray-50">
+                    <div className="flex items-center justify-center gap-2 text-gray-500">
+                      <Inbox size={18} />
+                      <span>No data found</span>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
