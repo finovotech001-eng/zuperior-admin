@@ -1,7 +1,7 @@
 // src/pages/admin/UsersView.jsx
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Users, Wallet, Download, Upload, ShieldCheck } from "lucide-react";
+import { Users, Wallet, Download, Upload, ShieldCheck, CreditCard } from "lucide-react";
 import ProTable from "../../components/ProTable.jsx";
 import Modal from "../../components/Modal.jsx";
 import Badge from "../../components/Badge.jsx";
@@ -28,6 +28,7 @@ export default function UsersView(){
   const [data,setData] = useState(null);
   const [err,setErr] = useState("");
   const [logins, setLogins] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [actionModal, setActionModal] = useState(null); // { type, accountId, amount, comment }
   const [mt5Map, setMt5Map] = useState({}); // accountId -> {balance, equity}
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +86,17 @@ export default function UsersView(){
     fetch(`${BASE}/admin/users/${id}/logins`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(r=>r.json())
       .then(j => { if (cancel) return; setLogins(Array.isArray(j.items) ? j.items : []); })
+      .catch(()=>{});
+    return () => { cancel = true; };
+  }, [BASE, id]);
+
+  // Fetch payment methods for this user
+  useEffect(()=>{
+    const token = localStorage.getItem('adminToken');
+    let cancel = false;
+    fetch(`${BASE}/admin/users/${id}/payment-methods`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(r=>r.json())
+      .then(j => { if (cancel) return; setPaymentMethods(Array.isArray(j.paymentMethods) ? j.paymentMethods : []); })
       .catch(()=>{});
     return () => { cancel = true; };
   }, [BASE, id]);
@@ -220,6 +232,47 @@ export default function UsersView(){
               <span>accounts are marked as real</span>
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Approved Payment Methods */}
+      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm">
+        <div className="px-5 pt-4 pb-2 text-sm font-semibold flex items-center gap-2">
+          <CreditCard className="h-4 w-4" />
+          Approved Payment Methods
+        </div>
+        <div className="p-4">
+          {paymentMethods.length === 0 ? (
+            <div className="text-sm text-gray-600 py-4">No approved payment methods found.</div>
+          ) : (
+            <ProTable
+              rows={paymentMethods.map((pm, idx) => ({
+                __index: idx+1,
+                address: pm.address || '-',
+                currency: pm.currency || '-',
+                network: pm.network || '-',
+                submittedAt: fmt(pm.submittedAt),
+                approvedAt: fmt(pm.approvedAt),
+                status: pm.status || 'approved',
+              }))}
+              columns={[
+                { key: '__index', label: 'Sr No', sortable: false },
+                { key: 'address', label: 'Address' },
+                { key: 'currency', label: 'Currency' },
+                { key: 'network', label: 'Network' },
+                { key: 'submittedAt', label: 'Submitted' },
+                { key: 'approvedAt', label: 'Approved' },
+                { key: 'status', label: 'Status', render: (v) => (
+                  <Badge tone={v === 'approved' ? 'green' : v === 'rejected' ? 'red' : 'amber'}>
+                    {v || 'pending'}
+                  </Badge>
+                )},
+              ]}
+              pageSize={5}
+              searchPlaceholder="Search by address, currency, network…"
+              filters={{ searchKeys: ['address','currency','network'] }}
+            />
+          )}
         </div>
       </div>
 
