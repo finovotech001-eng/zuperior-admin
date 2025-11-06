@@ -1,7 +1,7 @@
 // src/components/Sidebar.jsx
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU, getMenuForRole, ROLE_FEATURES } from "./SidebarMenuConfig.js";
+import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU, getMenuForRole, getSuperAdminFeatures } from "./SidebarMenuConfig.js";
 import { useAuth } from "../contexts/AuthContext";
 import { ChevronDown } from "lucide-react";
 
@@ -153,6 +153,8 @@ export default function Sidebar({
       ...section,
       items: section.items.filter(item => {
         const path = (item.to || '').toString().split('/').pop() || item.to;
+        // Always include logout button for all roles
+        if (path === 'logout') return true;
         return features.includes(path);
       }).map(it => ({
         ...it,
@@ -161,7 +163,17 @@ export default function Sidebar({
           return features.includes(p) || features.includes((it.to || '').toString().split('/').pop());
         }) : it.children
       }))
-    })).filter(section => section.items.length > 0);
+    })).filter(section => {
+      // Always include SYSTEM section if it has logout
+      if (section.label === 'SYSTEM') {
+        const hasLogout = section.items.some(item => {
+          const path = (item.to || '').toString().split('/').pop() || item.to;
+          return path === 'logout';
+        });
+        if (hasLogout) return true;
+      }
+      return section.items.length > 0;
+    });
   }, []);
 
   const MENU = useMemo(() => {
@@ -171,8 +183,9 @@ export default function Sidebar({
     if (role !== "admin") {
       return USER_MENU;
     }
-    // Prefer custom role features if present, else fallback to built-in mapping
-    const builtinFeatures = ROLE_FEATURES[adminRole];
+    // For superadmin, get all features dynamically
+    const builtinFeatures = adminRole === 'superadmin' ? getSuperAdminFeatures() : [];
+    // For other roles, use custom features from DB (passed via customFeatures prop)
     const features = Array.isArray(customFeatures) && customFeatures.length > 0 ? customFeatures : builtinFeatures;
     if (Array.isArray(features) && features.length) return filterMenuByFeatures(features);
     // final fallback: minimal safe menu (dashboard only)

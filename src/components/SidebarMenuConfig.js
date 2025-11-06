@@ -5,43 +5,105 @@ import {
   GitBranch, Network, Copy, Layers, ListChecks, Wallet, CreditCard, QrCode, Activity, Terminal, Headphones
 } from "lucide-react";
 
-// Role-based feature access based on actual sidebar menu
+// Extract all features dynamically from ADMIN_MENU
+export function extractAllFeaturesFromMenu() {
+  const featureMap = new Map(); // To avoid duplicates and store icon/label
+  
+  function processItem(item) {
+    if (!item.to) return;
+    
+    // Extract path - remove leading /admin/ if present, then remove leading /
+    let path = item.to.replace(/^\/admin\//, '').replace(/^\//, '');
+    
+    // Extract the main feature path (first part before /)
+    const mainPath = path.split('/')[0];
+    
+    if (mainPath && !featureMap.has(mainPath)) {
+      featureMap.set(mainPath, {
+        path: mainPath,
+        name: item.label || mainPath,
+        icon: item.icon || Settings
+      });
+    }
+    
+    // Process children if they exist
+    if (item.children && Array.isArray(item.children)) {
+      item.children.forEach(child => {
+        if (!child.to) return;
+        let childPath = child.to.replace(/^\/admin\//, '').replace(/^\//, '');
+        // Extract the main feature path (first part before /)
+        const childMainPath = childPath.split('/')[0];
+        if (childMainPath && !featureMap.has(childMainPath)) {
+          featureMap.set(childMainPath, {
+            path: childMainPath,
+            name: child.label || childMainPath,
+            icon: child.icon || item.icon || Settings
+          });
+        }
+      });
+    }
+  }
+  
+  ADMIN_MENU.forEach(section => {
+    if (section.items && Array.isArray(section.items)) {
+      section.items.forEach(processItem);
+    }
+  });
+  
+  return Array.from(featureMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Get all available features (for super admin - all features)
+export function getAllFeatures() {
+  return extractAllFeaturesFromMenu();
+}
+
+// Role-based feature access - superadmin gets all features automatically
+// Made lazy to avoid initialization order issues
+export function getSuperAdminFeatures() {
+  return getAllFeatures().map(f => f.path);
+}
+
 export const ROLE_FEATURES = {
-  superadmin: [
-    'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
-    'payment-gateways', 'payment-details', 'bulk-logs', 'assign-roles', 'profile',
-    // reports
-    'reports', 'book-pnl', 'finance', 'lp-statement', 'ib-dashboard'
-  ],
-  admin: [
-    'dashboard', 'users', 'kyc', 'mt5', 'deposits', 'withdrawals', 
-    'payment-gateways', 'payment-details', 'bulk-logs',
-    // reports
-    'reports', 'book-pnl', 'finance', 'lp-statement', 'ib-dashboard'
-  ],
-  moderator: [
-    'dashboard', 'users', 'kyc', 'bulk-logs'
-  ],
-  support: [
-    'dashboard', 'users', 'kyc'
-  ],
-  analyst: [
-    'dashboard', 'users', 'kyc', 'bulk-logs'
-  ]
+  // Note: superadmin features are now computed dynamically via getSuperAdminFeatures()
+  // Other roles will be stored in DB as custom roles
 };
 
 // Function to filter menu based on admin role
-export function getMenuForRole(role) {
-  const allowedFeatures = ROLE_FEATURES[role] || ROLE_FEATURES.admin;
+// For superadmin, return all menu items
+// For other roles, check permissions from DB (handled in AuthContext)
+export function getMenuForRole(role, customFeatures = []) {
+  // Super admin gets all features
+  if (role === 'superadmin') {
+    return ADMIN_MENU;
+  }
+  
+  // For other roles, use custom features if provided
+  // ROLE_FEATURES is now empty, all roles are custom and stored in DB
+  const allowedFeatures = customFeatures.length > 0 ? customFeatures : [];
   
   return ADMIN_MENU.map(section => ({
     ...section,
     items: section.items.filter(item => {
       // Extract the path from the 'to' property
-      const path = item.to.split('/').pop() || item.to;
-      return allowedFeatures.includes(path);
+      const path = item.to.replace(/^\/admin\//, '').replace(/^\//, '');
+      const mainPath = path.split('/')[0];
+      // Always include logout button for all roles
+      if (mainPath === 'logout') return true;
+      return allowedFeatures.includes(mainPath);
     })
-  })).filter(section => section.items.length > 0);
+  })).filter(section => {
+    // Always include SYSTEM section if it has logout
+    if (section.label === 'SYSTEM') {
+      const hasLogout = section.items.some(item => {
+        const path = item.to.replace(/^\/admin\//, '').replace(/^\//, '');
+        const mainPath = path.split('/')[0];
+        return mainPath === 'logout';
+      });
+      if (hasLogout) return true;
+    }
+    return section.items.length > 0;
+  });
 }
 
 /* -------------------- SUPER ADMIN -------------------- */

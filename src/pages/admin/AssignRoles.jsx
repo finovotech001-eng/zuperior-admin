@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { ROLE_FEATURES } from "../../components/SidebarMenuConfig.js";
+import { getAllFeatures, extractAllFeaturesFromMenu } from "../../components/SidebarMenuConfig.js";
 import Swal from "sweetalert2";
 
 const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
@@ -33,60 +33,19 @@ import {
 } from "lucide-react";
 import { Trash2 } from "lucide-react";
 
-const ROLE_OPTIONS = [
-  { value: 'superadmin', label: 'Super Admin', color: 'bg-red-100 text-red-800', description: 'Full access to all features' },
-  { value: 'admin', label: 'Admin', color: 'bg-blue-100 text-blue-800', description: 'Standard admin access' },
-  { value: 'moderator', label: 'Moderator', color: 'bg-green-100 text-green-800', description: 'Limited admin access' },
-  { value: 'support', label: 'Support', color: 'bg-yellow-100 text-yellow-800', description: 'Customer support access' },
-  { value: 'analyst', label: 'Analyst', color: 'bg-purple-100 text-purple-800', description: 'Analytics and reporting access' }
-];
+// Get all available features dynamically from sidebar menu
+const ALL_AVAILABLE_FEATURES = getAllFeatures();
 
-// Real features based on actual sidebar menu
-const ADMIN_FEATURES = {
-  superadmin: [
-    { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
-    { name: 'Manage Users', icon: Users, path: 'users' },
-    { name: 'KYC Verifications', icon: Shield, path: 'kyc' },
-    { name: 'MT5 Management', icon: Database, path: 'mt5' },
-    { name: 'Manage Deposits', icon: CreditCard, path: 'deposits' },
-    { name: 'Manage Withdrawals', icon: DollarSign, path: 'withdrawals' },
-    { name: 'Payment Gateways', icon: CreditCard, path: 'payment-gateways' },
-    { name: 'Payment Details', icon: CreditCard, path: 'payment-details' },
-    { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' },
-    { name: 'Assign Roles', icon: Settings, path: 'assign-roles' },
-    { name: 'Admin Profile', icon: UserCheck, path: 'profile' }
-  ],
-  admin: [
-    { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
-    { name: 'Manage Users', icon: Users, path: 'users' },
-    { name: 'KYC Verifications', icon: Shield, path: 'kyc' },
-    { name: 'MT5 Management', icon: Database, path: 'mt5' },
-    { name: 'Manage Deposits', icon: CreditCard, path: 'deposits' },
-    { name: 'Manage Withdrawals', icon: DollarSign, path: 'withdrawals' },
-    { name: 'Payment Gateways', icon: CreditCard, path: 'payment-gateways' },
-    { name: 'Payment Details', icon: CreditCard, path: 'payment-details' },
-    { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' }
-  ],
-  moderator: [
-    { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
-    { name: 'Manage Users', icon: Users, path: 'users' },
-    { name: 'KYC Verifications', icon: Shield, path: 'kyc' },
-    { name: 'Support Tickets', icon: MessageSquare, path: 'support' },
-    { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' }
-  ],
-  support: [
-    { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
-    { name: 'Manage Users', icon: Users, path: 'users' },
-    { name: 'KYC Verifications', icon: Shield, path: 'kyc' },
-    { name: 'Support Tickets', icon: MessageSquare, path: 'support' }
-  ],
-  analyst: [
-    { name: 'Dashboard', icon: BarChart3, path: 'dashboard' },
-    { name: 'Manage Users', icon: Users, path: 'users' },
-    { name: 'KYC Verifications', icon: Shield, path: 'kyc' },
-    { name: 'Bulk Operations Log', icon: FileText, path: 'bulk-logs' }
-  ]
+// Super admin role - always has all features (not editable)
+const SUPERADMIN_ROLE = {
+  value: 'superadmin',
+  label: 'Super Admin',
+  color: 'bg-red-100 text-red-800',
+  description: 'Full access to all features (automatically includes all sidebar pages)',
+  isProtected: true // Cannot be edited
 };
+
+// Note: All other roles (admin, moderator, support, analyst) will be stored as custom roles in DB
 
 export default function AssignRoles() {
   const { admin } = useAuth();
@@ -173,11 +132,11 @@ export default function AssignRoles() {
     features: []
   });
 
-  // Build a global feature lookup from ADMIN_FEATURES
+  // Build a global feature lookup from dynamic features
   const FEATURE_MAP = useMemo(() => {
     const map = {};
-    Object.values(ADMIN_FEATURES).forEach(list => {
-      list.forEach(f => { if (f?.path) map[f.path] = f; });
+    ALL_AVAILABLE_FEATURES.forEach(f => {
+      if (f?.path) map[f.path] = f;
     });
     return map;
   }, []);
@@ -386,8 +345,20 @@ export default function AssignRoles() {
   };
 
   const handleFeatureSelection = (adminUser) => {
+    // For superadmin, don't allow editing
+    if (adminUser.admin_role === 'superadmin') {
+      Swal.fire({
+        icon: 'info',
+        title: 'Super Admin',
+        text: 'Super Admin has all features automatically. Cannot be edited.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
     setSelectedAdmin(adminUser);
-    setSelectedFeatures(adminUser.features || []);
+    // Get features from custom role if exists
+    const custom = findCustomRole(adminUser.admin_role);
+    setSelectedFeatures(custom?.permissions?.features || []);
     setShowFeatureModal(true);
   };
 
@@ -401,12 +372,64 @@ export default function AssignRoles() {
     });
   };
 
-  const handleSaveFeatures = () => {
-    // Here you would save the custom features to the backend
-    console.log('Saving features for admin:', selectedAdmin, 'Features:', selectedFeatures);
-    setShowFeatureModal(false);
-    setSelectedAdmin(null);
-    setSelectedFeatures([]);
+  const handleSaveFeatures = async () => {
+    if (!selectedAdmin) return;
+    
+    // For superadmin, don't allow saving
+    if (selectedAdmin.admin_role === 'superadmin') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Cannot Edit',
+        text: 'Super Admin features cannot be edited.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      // Check if role exists in DB, if not create it, if yes update it
+      const existingRole = findCustomRole(selectedAdmin.admin_role);
+      
+      if (existingRole) {
+        // Update existing role
+        const res = await fetch(`${BASE}/admin/roles/${existingRole.id}`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: existingRole.name,
+            description: existingRole.description || '',
+            features: selectedFeatures
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to update role');
+        await fetchRoles();
+        Swal.fire({ icon: 'success', title: 'Features updated', timer: 1500, showConfirmButton: false });
+      } else {
+        // Create new role
+        const res = await fetch(`${BASE}/admin/roles`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: selectedAdmin.admin_role,
+            description: '',
+            features: selectedFeatures
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to create role');
+        await fetchRoles();
+        Swal.fire({ icon: 'success', title: 'Role created and features saved', timer: 1500, showConfirmButton: false });
+      }
+      
+      setShowFeatureModal(false);
+      setSelectedAdmin(null);
+      setSelectedFeatures([]);
+    } catch (err) {
+      console.error(err);
+      Swal.fire({ icon: 'error', title: 'Failed to save features', text: err.message || 'Unable to save features' });
+    }
   };
 
   const handleChangePassword = async () => {
@@ -653,7 +676,16 @@ export default function AssignRoles() {
   }, []);
 
   const getFeaturesForRole = (role) => {
-    return ADMIN_FEATURES[role] || [];
+    // Super admin gets all features automatically
+    if (role === 'superadmin') {
+      return ALL_AVAILABLE_FEATURES;
+    }
+    // For other roles, check if there's a custom role in DB
+    const custom = findCustomRole(role);
+    if (custom?.permissions?.features) {
+      return custom.permissions.features.map(p => FEATURE_MAP[p] || { name: p, icon: Settings, path: p });
+    }
+    return [];
   };
 
   const getStatusInfo = (isActive) => {
@@ -709,34 +741,33 @@ export default function AssignRoles() {
           </div>
         )}
 
-        {/* Role Cards */}
+        {/* Super Admin Role Card (Protected) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mb-8">
-          {ROLE_OPTIONS.map((role) => (
-            <div key={role.value} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${role.color}`}>
-                  {role.label}
-                </div>
-                <Shield className="h-5 w-5 text-gray-400" />
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className={`px-2 py-1 rounded-full text-xs font-medium ${SUPERADMIN_ROLE.color}`}>
+                {SUPERADMIN_ROLE.label}
               </div>
-              <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-2">{role.label}</h3>
-              <p className="text-xs sm:text-sm text-gray-600 mb-3">{role.description}</p>
-              <div className="space-y-1">
-                <div className="text-xs sm:text-sm font-medium text-gray-700">Features:</div>
-                <div className="flex flex-wrap gap-1">
-                  {getFeaturesForRole(role.value).slice(0, window.innerWidth < 640 ? 2 : 3).map((feature, index) => (
-                    <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
-                      <feature.icon className="h-3 w-3" />
-                      {feature.name}
-                    </span>
-                  ))}
-                  {getFeaturesForRole(role.value).length > (window.innerWidth < 640 ? 2 : 3) && (
-                    <span className="text-xs text-gray-500">+{getFeaturesForRole(role.value).length - (window.innerWidth < 640 ? 2 : 3)} more</span>
-                  )}
-                </div>
-              </div>
+              <Shield className="h-5 w-5 text-gray-400" />
             </div>
-          ))}
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-2">{SUPERADMIN_ROLE.label}</h3>
+            <p className="text-xs sm:text-sm text-gray-600 mb-3">{SUPERADMIN_ROLE.description}</p>
+            <div className="space-y-1">
+              <div className="text-xs sm:text-sm font-medium text-gray-700">Features:</div>
+              <div className="flex flex-wrap gap-1">
+                {ALL_AVAILABLE_FEATURES.slice(0, window.innerWidth < 640 ? 2 : 3).map((feature, index) => (
+                  <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                    <feature.icon className="h-3 w-3" />
+                    {feature.name}
+                  </span>
+                ))}
+                {ALL_AVAILABLE_FEATURES.length > (window.innerWidth < 640 ? 2 : 3) && (
+                  <span className="text-xs text-gray-500">+{ALL_AVAILABLE_FEATURES.length - (window.innerWidth < 640 ? 2 : 3)} more</span>
+                )}
+              </div>
+              <div className="mt-2 text-xs text-gray-500 italic">Protected - All features included automatically</div>
+            </div>
+          </div>
         </div>
 
         {/* Roles Table */}
@@ -766,14 +797,16 @@ export default function AssignRoles() {
                         <td className="px-3 sm:px-6 py-3 text-sm text-gray-600">{features.length} feature{features.length === 1 ? '' : 's'}</td>
                         <td className="px-3 sm:px-6 py-3 text-sm">
                           <div className="flex items-end gap-6">
-                            <button 
-                              onClick={() => { setSelectedRole(r); setShowEditRoleModal(true); setEditRole({ name: r.name || '', description: r.description || '', features: (r.permissions?.features)||[] }); }} 
-                              className="flex flex-col items-center text-green-600 hover:text-green-700"
-                              title="Edit Features"
-                            >
-                              <Settings className="h-4 w-4" />
-                              <small className="text-[10px] leading-3 mt-1">Features</small>
-                            </button>
+                            {r.name.toLowerCase() !== 'superadmin' && (
+                              <button 
+                                onClick={() => { setSelectedRole(r); setShowEditRoleModal(true); setEditRole({ name: r.name || '', description: r.description || '', features: (r.permissions?.features)||[] }); }} 
+                                className="flex flex-col items-center text-green-600 hover:text-green-700"
+                                title="Edit Features"
+                              >
+                                <Settings className="h-4 w-4" />
+                                <small className="text-[10px] leading-3 mt-1">Features</small>
+                              </button>
+                            )}
 
                             <button 
                               onClick={() => { setSelectedRole(r); setShowRoleViewModal(true); }} 
@@ -800,8 +833,13 @@ export default function AssignRoles() {
                               <small className="text-[10px] leading-3 mt-1">Password</small>
                             </button>
 
-                            {admin?.admin_role === 'superadmin' && (
-                              <button onClick={() => handleDeleteRole(r)} className="flex flex-col items-center text-red-600 hover:text-red-700">
+                            {/* Delete button - available for all custom roles except superadmin */}
+                            {r.name.toLowerCase() !== 'superadmin' && (
+                              <button 
+                                onClick={() => handleDeleteRole(r)} 
+                                className="flex flex-col items-center text-red-600 hover:text-red-700"
+                                title="Delete Role"
+                              >
                                 <Trash2 className="h-4 w-4" />
                                 <small className="text-[10px] leading-3 mt-1">Delete</small>
                               </button>
@@ -851,8 +889,13 @@ export default function AssignRoles() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {admins.map((adminUser) => {
-                  const role = ROLE_OPTIONS.find(r => r.value === adminUser.admin_role);
+                  // Check if it's superadmin or a custom role
+                  const isSuperAdmin = adminUser.admin_role === 'superadmin';
+                  const customRole = !isSuperAdmin ? findCustomRole(adminUser.admin_role) : null;
                   const statusInfo = getStatusInfo(adminUser.is_active);
+                  // For display purposes, determine role label
+                  const roleLabel = isSuperAdmin ? SUPERADMIN_ROLE.label : (customRole?.name || adminUser.admin_role);
+                  const roleColor = isSuperAdmin ? SUPERADMIN_ROLE.color : 'bg-indigo-100 text-indigo-800';
                   return (
                     <tr key={adminUser.id} className="hover:bg-gray-50">
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
@@ -874,8 +917,8 @@ export default function AssignRoles() {
                             onClick={(e) => handleRoleDropdownToggle(adminUser.id, e)}
                             className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-900 hover:text-purple-600 transition-colors"
                           >
-                            <span className={`px-2 py-1 rounded-full text-xs ${role?.color || 'bg-gray-100 text-gray-800'}`}>
-                              {role?.label || adminUser.admin_role}
+                            <span className={`px-2 py-1 rounded-full text-xs ${roleColor}`}>
+                              {roleLabel}
                             </span>
                           </button>
                           
@@ -892,12 +935,10 @@ export default function AssignRoles() {
                                 }}
                               >
                                 {[
-                                  // built-in roles first (except superadmin)
-                                  ...ROLE_OPTIONS.filter(r => r.value !== 'superadmin'),
-                                  // then custom roles from DB (avoid duplicates by value/name)
-                                  ...roles
-                                    .filter(r => !['superadmin','admin','moderator','support','analyst'].includes(r.name.toLowerCase()))
-                                    .map(r => ({ value: r.name, label: r.name, color: 'bg-indigo-100 text-indigo-800' })),
+                                  // Super admin first (protected)
+                                  SUPERADMIN_ROLE,
+                                  // then custom roles from DB (all roles are now custom except superadmin)
+                                  ...roles.map(r => ({ value: r.name, label: r.name, color: 'bg-indigo-100 text-indigo-800' })),
                                 ].map((roleOption) => (
                                   <div
                                     key={roleOption.value}
@@ -939,21 +980,23 @@ export default function AssignRoles() {
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-end gap-4">
-                          {adminUser.admin_role === 'superadmin' && (
+                          {isSuperAdmin && (
                             <div className="flex flex-col items-center text-gray-400">
                               <Lock className="h-4 w-4" />
                               <small className="text-[10px] leading-3 mt-1">Protected</small>
                             </div>
                           )}
 
-                          <button 
-                            onClick={() => handleFeatureSelection(adminUser)}
-                            className="flex flex-col items-center text-green-600 hover:text-green-800"
-                            title="Customize Features"
-                          >
-                            <Settings className="h-4 w-4" />
-                            <small className="text-[10px] leading-3 mt-1">Features</small>
-                          </button>
+                          {!isSuperAdmin && (
+                            <button 
+                              onClick={() => handleFeatureSelection(adminUser)}
+                              className="flex flex-col items-center text-green-600 hover:text-green-800"
+                              title="Edit Features"
+                            >
+                              <Settings className="h-4 w-4" />
+                              <small className="text-[10px] leading-3 mt-1">Features</small>
+                            </button>
+                          )}
 
                           <button 
                             onClick={() => { setSelectedAdmin(adminUser); setShowViewModal(true); }}
@@ -1009,10 +1052,12 @@ export default function AssignRoles() {
               <div className="p-4 sm:p-6">
                 <div className="mb-4">
                   {(() => {
-                    const role = ROLE_OPTIONS.find(r => r.value === selectedAdmin.admin_role);
+                    const isSuperAdmin = selectedAdmin.admin_role === 'superadmin';
                     return (
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${role?.color || 'bg-gray-100 text-gray-800'}`}>
-                        {role?.label || selectedAdmin.admin_role}
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                        isSuperAdmin ? SUPERADMIN_ROLE.color : 'bg-indigo-100 text-indigo-800'
+                      }`}>
+                        {isSuperAdmin ? SUPERADMIN_ROLE.label : (selectedAdmin.admin_role)}
                       </span>
                     );
                   })()}
@@ -1125,16 +1170,12 @@ export default function AssignRoles() {
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                         required
                       >
-                        {/* Built-in roles (except superadmin) */}
-                        {ROLE_OPTIONS.filter(role => role.value !== 'superadmin').map((role) => (
-                          <option key={role.value} value={role.value}>{role.label}</option>
-                        ))}
+                        {/* Super admin */}
+                        <option value={SUPERADMIN_ROLE.value}>{SUPERADMIN_ROLE.label}</option>
                         {/* Custom roles from DB */}
-                        {roles
-                          .filter(r => !['superadmin','admin','moderator','support','analyst'].includes(r.name.toLowerCase()))
-                          .map(r => (
-                            <option key={r.id} value={r.name}>{r.name}</option>
-                          ))}
+                        {roles.map(r => (
+                          <option key={r.id} value={r.name}>{r.name}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1190,25 +1231,21 @@ export default function AssignRoles() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(ADMIN_FEATURES).map(([roleType, features]) => (
-                    <div key={roleType} className="border border-gray-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3 capitalize">{roleType} Features</h4>
-                      <div className="space-y-2">
-                        {features.map((feature, index) => (
-                          <label key={index} className="flex items-center gap-2 text-sm cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedFeatures.includes(feature.path)}
-                              onChange={() => handleFeatureToggle(feature.path)}
-                              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                            />
-                            <feature.icon className="h-4 w-4 text-gray-500" />
-                            <span>{feature.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                  {/* Group features by category from sidebar */}
+                  {ALL_AVAILABLE_FEATURES
+                    .filter(f => f.path !== 'assign-roles' && f.path !== 'profile' && f.path !== 'logout') // Exclude system pages
+                    .map((feature, index) => (
+                      <label key={index} className="flex items-center gap-2 text-sm cursor-pointer border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={selectedFeatures.includes(feature.path)}
+                          onChange={() => handleFeatureToggle(feature.path)}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <feature.icon className="h-4 w-4 text-gray-500" />
+                        <span>{feature.name}</span>
+                      </label>
+                    ))}
                 </div>
 
                 <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
@@ -1368,42 +1405,35 @@ export default function AssignRoles() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Select Features for this Role *
+                      Select Features for this Role * (All sidebar pages are available)
                     </label>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {Object.entries(ADMIN_FEATURES).map(([roleType, features]) => (
-                        <div key={roleType} className="border border-gray-200 rounded-lg p-4">
-                          <h4 className="text-sm font-semibold text-gray-700 mb-3 capitalize">{roleType} Features</h4>
-                          <div className="space-y-2">
-                            {features
-                              .filter((feature) => feature.path !== 'assign-roles' && feature.path !== 'profile')
-                              .map((feature, index) => (
-                              <label key={index} className="flex items-center gap-2 text-sm cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={newRole.features.includes(feature.path)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setNewRole({
-                                        ...newRole,
-                                        features: [...newRole.features, feature.path]
-                                      });
-                                    } else {
-                                      setNewRole({
-                                        ...newRole,
-                                        features: newRole.features.filter(f => f !== feature.path)
-                                      });
-                                    }
-                                  }}
-                                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <feature.icon className="h-4 w-4 text-gray-500" />
-                                <span>{feature.name}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                      {ALL_AVAILABLE_FEATURES
+                        .filter((feature) => feature.path !== 'assign-roles' && feature.path !== 'profile' && feature.path !== 'logout')
+                        .map((feature, index) => (
+                          <label key={index} className="flex items-center gap-2 text-sm cursor-pointer border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
+                            <input
+                              type="checkbox"
+                              checked={newRole.features.includes(feature.path)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewRole({
+                                    ...newRole,
+                                    features: [...newRole.features, feature.path]
+                                  });
+                                } else {
+                                  setNewRole({
+                                    ...newRole,
+                                    features: newRole.features.filter(f => f !== feature.path)
+                                  });
+                                }
+                              }}
+                              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <feature.icon className="h-4 w-4 text-gray-500" />
+                            <span>{feature.name}</span>
+                          </label>
+                        ))}
                     </div>
                   </div>
 
@@ -1472,8 +1502,8 @@ export default function AssignRoles() {
           </div>
         )}
 
-        {/* Edit Role Modal */}
-        {showEditRoleModal && selectedRole && (
+        {/* Edit Role Modal - Only for non-superadmin roles */}
+        {showEditRoleModal && selectedRole && selectedRole.name.toLowerCase() !== 'superadmin' && (
           <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-enhanced flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
@@ -1506,35 +1536,28 @@ export default function AssignRoles() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Select Features *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Select Features * (All sidebar pages are available)</label>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.entries(ADMIN_FEATURES).map(([roleType, features]) => (
-                      <div key={roleType} className="border border-gray-200 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-3 capitalize">{roleType} Features</h4>
-                        <div className="space-y-2">
-                        {features
-                          .filter((feature) => feature.path !== 'assign-roles' && feature.path !== 'profile')
-                          .map((feature, index) => (
-                            <label key={index} className="flex items-center gap-2 text-sm cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={editRole.features.includes(feature.path)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setEditRole({ ...editRole, features: [...editRole.features, feature.path] });
-                                  } else {
-                                    setEditRole({ ...editRole, features: editRole.features.filter(f => f !== feature.path) });
-                                  }
-                                }}
-                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                              <feature.icon className="h-4 w-4 text-gray-500" />
-                              <span>{feature.name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                    {ALL_AVAILABLE_FEATURES
+                      .filter((feature) => feature.path !== 'assign-roles' && feature.path !== 'profile' && feature.path !== 'logout')
+                      .map((feature, index) => (
+                        <label key={index} className="flex items-center gap-2 text-sm cursor-pointer border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={editRole.features.includes(feature.path)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditRole({ ...editRole, features: [...editRole.features, feature.path] });
+                              } else {
+                                setEditRole({ ...editRole, features: editRole.features.filter(f => f !== feature.path) });
+                              }
+                            }}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <feature.icon className="h-4 w-4 text-gray-500" />
+                          <span>{feature.name}</span>
+                        </label>
+                      ))}
                   </div>
                 </div>
 
@@ -1551,6 +1574,11 @@ export default function AssignRoles() {
                         Swal.fire({ icon: 'error', title: 'Role name and features are required' });
                         return;
                       }
+                      // Prevent editing superadmin
+                      if (editRole.name.toLowerCase() === 'superadmin') {
+                        Swal.fire({ icon: 'error', title: 'Cannot edit Super Admin', text: 'Super Admin role cannot be edited.' });
+                        return;
+                      }
                       try {
                         const token = localStorage.getItem('adminToken');
                         const res = await fetch(`${BASE}/admin/roles/${selectedRole.id}`, {
@@ -1560,7 +1588,7 @@ export default function AssignRoles() {
                         });
                         const data = await res.json();
                         if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to update role');
-                        setRoles(prev => prev.map(r => r.id === selectedRole.id ? data.role : r));
+                        await fetchRoles();
                         setShowEditRoleModal(false);
                         setSelectedRole(null);
                         Swal.fire({ icon: 'success', title: 'Role updated', timer: 1500, showConfirmButton: false });

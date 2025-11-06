@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import ProTable from "../../components/ProTable.jsx";
 import Modal from "../../components/Modal.jsx";
-import { CheckCircle, Eye } from "lucide-react";
+import { CheckCircle, XCircle, Eye } from "lucide-react";
+import Swal from "sweetalert2";
 
 function fmtDate(v) {
   if (!v) return "-";
@@ -20,7 +21,10 @@ export default function WithdrawalsPending() {
   const [error, setError] = useState("");
   const [confirmApprove, setConfirmApprove] = useState(null);
   const [approving, setApproving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [confirmReject, setConfirmReject] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+  // Success toast handled by SweetAlert for quick feedback
 
   const BASE = import.meta.env.VITE_BACKEND_API_URL
     || import.meta.env.VITE_API_BASE_URL
@@ -79,13 +83,22 @@ export default function WithdrawalsPending() {
     ) },
     { key: "createdAt", label: "Created", render: (v) => fmtDate(v) },
     { key: "actions", label: "Actions", sortable: false, render: (v, row) => (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 justify-center">
         <button
           onClick={() => setConfirmApprove(row)}
-          className="h-8 w-8 grid place-items-center rounded-md border border-green-200 text-green-700 hover:bg-green-50"
+          disabled={approving || rejecting}
+          className="h-8 w-8 grid place-items-center rounded-md border border-green-200 text-green-700 hover:bg-green-50 disabled:opacity-50"
           title="Approve Withdrawal"
         >
           <CheckCircle size={16} />
+        </button>
+        <button
+          onClick={() => { setConfirmReject(row); setRejectReason(""); }}
+          disabled={approving || rejecting}
+          className="h-8 w-8 grid place-items-center rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
+          title="Reject Withdrawal"
+        >
+          <XCircle size={16} />
         </button>
       </div>
     ) },
@@ -106,12 +119,35 @@ export default function WithdrawalsPending() {
       if (!data?.ok) throw new Error(data?.error || 'Failed to approve');
       setRows(list => list.filter(it => it.id !== row.id));
       setConfirmApprove(null);
-      setSuccessMessage(data.message || 'Withdrawal approved successfully.');
-      setTimeout(() => setSuccessMessage(""), 5000);
+      await Swal.fire({ icon: 'success', title: 'Approved', text: data.message || 'Withdrawal approved successfully.', timer: 1500, showConfirmButton: false });
     } catch (e) {
-      alert(e.message || String(e));
+      Swal.fire({ icon:'error', title:'Failed', text: e.message || String(e) });
     } finally {
       setApproving(false);
+    }
+  }
+
+  async function onReject(row) {
+    setRejecting(true);
+    try {
+      const r = await fetch(`${BASE}/admin/withdrawals/${row.id}/reject`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: rejectReason })
+      });
+      const data = await r.json();
+      if (!data?.ok) throw new Error(data?.error || 'Failed to reject');
+      setRows(list => list.filter(it => it.id !== row.id));
+      setConfirmReject(null);
+      setRejectReason("");
+      await Swal.fire({ icon: 'success', title: 'Rejected', text: data.message || 'Withdrawal rejected successfully.', timer: 1500, showConfirmButton: false });
+    } catch (e) {
+      Swal.fire({ icon:'error', title:'Failed', text: e.message || String(e) });
+    } finally {
+      setRejecting(false);
     }
   }
 
@@ -148,12 +184,36 @@ export default function WithdrawalsPending() {
         )}
       </Modal>
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-          {successMessage}
-        </div>
-      )}
+      {/* Reject Confirm */}
+      <Modal open={!!confirmReject} onClose={() => { if (!rejecting) setConfirmReject(null); }} title="Reject Withdrawal">
+        {confirmReject && (
+          <div className="space-y-4">
+            <p>Provide a reason and confirm rejection of <b>{fmtAmount(confirmReject.amount)}</b> for <b>{confirmReject.userEmail}</b>.</p>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Rejection Reason (optional)</label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-gray-300 p-2"
+                placeholder="Reason for rejection"
+                disabled={rejecting}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmReject(null)} disabled={rejecting} className="px-4 h-10 rounded-md border disabled:opacity-50">Cancel</button>
+              <button
+                onClick={() => onReject(confirmReject)}
+                disabled={rejecting}
+                className="px-4 h-10 rounded-md bg-red-600 text-white disabled:bg-gray-400"
+              >
+                {rejecting ? "Rejecting..." : "Reject"}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
     </>
   );
 }

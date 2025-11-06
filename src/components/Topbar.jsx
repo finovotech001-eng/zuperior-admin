@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Menu, Shield, Bell, Search, ChevronDown, User, LogOut } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU, ROLE_FEATURES } from "./SidebarMenuConfig.js";
+import { SUPERADMIN_MENU, ADMIN_MENU, USER_MENU, getSuperAdminFeatures } from "./SidebarMenuConfig.js";
 
 /**
  * Props
@@ -54,6 +54,8 @@ export default function Topbar({
       ...section,
       items: section.items.filter(item => {
         const path = (item.to || '').toString().split('/').pop() || item.to;
+        // Always include logout button for all roles
+        if (path === 'logout') return true;
         return features.includes(path);
       }).map(it => ({
         ...it,
@@ -62,14 +64,26 @@ export default function Topbar({
           return features.includes(p) || features.includes((it.to || '').toString().split('/').pop());
         }) : it.children
       }))
-    })).filter(section => section.items.length > 0);
+    })).filter(section => {
+      // Always include SYSTEM section if it has logout
+      if (section.label === 'SYSTEM') {
+        const hasLogout = section.items.some(item => {
+          const path = (item.to || '').toString().split('/').pop() || item.to;
+          return path === 'logout';
+        });
+        if (hasLogout) return true;
+      }
+      return section.items.length > 0;
+    });
   };
 
   const accessibleMenu = (() => {
     if (role === "superadmin") return SUPERADMIN_MENU;
     if (role === "user") return USER_MENU;
     const roleName = admin?.admin_role || 'admin';
-    const builtinFeatures = ROLE_FEATURES[roleName];
+    // For superadmin, get all features dynamically
+    const builtinFeatures = roleName === 'superadmin' ? getSuperAdminFeatures() : [];
+    // For other roles, use custom features from DB (passed via customFeatures prop)
     const features = Array.isArray(customFeatures) && customFeatures.length > 0 ? customFeatures : builtinFeatures;
     if (Array.isArray(features) && features.length) return filterMenuByFeatures(features);
     return filterMenuByFeatures(["dashboard"]);

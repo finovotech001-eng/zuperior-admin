@@ -20,6 +20,7 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null); // row
   const [confirmDel, setConfirmDel] = useState(null); // row
+  const [deleting, setDeleting] = useState(false); // loading state for delete
   const [confirmVerify, setConfirmVerify] = useState(null); // {row,next}
   const [confirmBan, setConfirmBan] = useState(null); // {row,next}
   const [countryScope, setCountryScope] = useState("");
@@ -190,6 +191,8 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
   }
 
   async function onDelete(row) {
+    if (deleting) return; // Prevent double clicks
+    setDeleting(true);
     try {
       const token = localStorage.getItem('adminToken');
       const r = await fetch(`${BASE}/admin/users/${row.id}`, { 
@@ -219,7 +222,6 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
       });
     } catch (e) {
       console.error('Delete user error:', e);
-      setConfirmDel(null);
       
       // Show error message with more details
       Swal.fire({
@@ -228,6 +230,12 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
         text: e.message || 'Failed to delete user. Please try again.',
         confirmButtonText: 'OK'
       });
+    } finally {
+      setDeleting(false);
+      // Only close modal if successful (already closed on success)
+      if (!deleting) {
+        // If error occurred, keep modal open so user can retry
+      }
     }
   }
 
@@ -367,13 +375,36 @@ export default function UsersAll({ initialTitle = 'All Users', queryParams = {} 
       </Modal>
 
       {/* Delete Confirm */}
-      <Modal open={!!confirmDel} onClose={()=>setConfirmDel(null)} title="Delete User">
+      <Modal open={!!confirmDel} onClose={()=>!deleting && setConfirmDel(null)} title="Delete User">
         {confirmDel && (
           <div className="space-y-4">
             <p>Are you sure you want to delete <b>{confirmDel.email}</b>?</p>
+            <p className="text-sm text-gray-600">This will delete all related records including deposits, withdrawals, MT5 accounts, KYC, and other data.</p>
             <div className="flex justify-end gap-2">
-              <button onClick={()=>setConfirmDel(null)} className="px-4 h-10 rounded-md border">Cancel</button>
-              <button onClick={()=>onDelete(confirmDel)} className="px-4 h-10 rounded-md bg-rose-600 text-white">Delete</button>
+              <button 
+                onClick={()=>setConfirmDel(null)} 
+                disabled={deleting}
+                className="px-4 h-10 rounded-md border disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={()=>onDelete(confirmDel)} 
+                disabled={deleting}
+                className="px-4 h-10 rounded-md bg-rose-600 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
             </div>
           </div>
         )}

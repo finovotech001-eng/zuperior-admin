@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { ROLE_FEATURES } from "./SidebarMenuConfig.js";
+import { getSuperAdminFeatures } from "./SidebarMenuConfig.js";
 import { useAuth } from "../contexts/AuthContext";
 import AdminIndexRedirect from "./AdminIndexRedirect.jsx";
 
@@ -18,7 +18,8 @@ export default function FeatureGuard({ feature, children }) {
         setAllowed(true);
         return;
       }
-      let features = ROLE_FEATURES[adminRole] || [];
+      // For custom roles, fetch from DB
+      let features = [];
       if (!isBuiltin) {
         try {
           const token = localStorage.getItem("adminToken");

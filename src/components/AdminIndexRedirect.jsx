@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { ROLE_FEATURES } from "./SidebarMenuConfig.js";
+import { getSuperAdminFeatures } from "./SidebarMenuConfig.js";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function AdminIndexRedirect() {
@@ -29,8 +29,10 @@ export default function AdminIndexRedirect() {
         "bulk-logs",
       ];
 
-      let features = ROLE_FEATURES[adminRole] || [];
-      if (!builtin.includes(adminRole)) {
+      // For superadmin, get all features dynamically
+      let features = adminRole === 'superadmin' ? getSuperAdminFeatures() : [];
+      // For custom roles, fetch from DB
+      if (!builtin.includes(adminRole) && adminRole !== 'superadmin') {
         try {
           const token = localStorage.getItem("adminToken");
           const res = await fetch(`${BASE}/admin/roles`, { headers: { Authorization: `Bearer ${token}` } });
