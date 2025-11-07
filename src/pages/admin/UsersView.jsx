@@ -338,7 +338,7 @@ export default function UsersView(){
                 <div className="flex items-center gap-2">
                   <button onClick={()=> setActionModal({ type:'deposit', accountId: row.accountId, amount:'', comment:'Admin deposit' })}
                           className="px-2 py-1 rounded-full bg-emerald-600 text-white text-xs hover:bg-emerald-700 shadow-sm">Deposit</button>
-                  <button onClick={()=> setActionModal({ type:'withdraw', accountId: row.accountId, amount:'', comment:'Admin withdrawal' })}
+                  <button onClick={()=> setActionModal({ type:'withdraw', accountId: row.accountId, amount:'', comment:'Admin withdrawal', txId:'' })}
                           className="px-2 py-1 rounded-full bg-rose-600 text-white text-xs hover:bg-rose-700 shadow-sm">Withdraw</button>
                 </div>
               ) },
@@ -457,6 +457,16 @@ export default function UsersView(){
                      disabled={submitting}
                      className="w-full rounded-md border border-gray-300 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-gray-100 disabled:text-gray-500" />
             </div>
+            {actionModal.type==='withdraw' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Transaction ID / Hash (optional)</label>
+                <input type="text" value={actionModal.txId||''}
+                       onChange={e=>setActionModal({ ...actionModal, txId: e.target.value })}
+                       disabled={submitting}
+                       placeholder="Paste blockchain tx hash or bank reference (optional)"
+                       className="w-full rounded-md border border-gray-300 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-gray-100 disabled:text-gray-500" />
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <button onClick={()=>setActionModal(null)} disabled={submitting} className="px-4 h-10 rounded-md border disabled:opacity-60">Cancel</button>
               <button onClick={async ()=>{
@@ -483,7 +493,8 @@ export default function UsersView(){
                         amount: amt,
                         currency: 'USD',
                         status: 'completed',
-                        comment: actionModal.comment || ''
+                        comment: actionModal.comment || '',
+                        ...(actionModal.type==='withdraw' && actionModal.txId ? { external_transaction_id: actionModal.txId.trim() } : {})
                       })
                     });
                   } catch(_) {}
