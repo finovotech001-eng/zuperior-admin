@@ -11,6 +11,8 @@ export default function PaymentDetails() {
   const [approved, setApproved] = useState([]);
   const [q, setQ] = useState("");
 
+  const fmt = (v) => (v ? new Date(v).toLocaleString() : "-");
+
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('adminToken');
@@ -85,19 +87,33 @@ export default function PaymentDetails() {
 
   const columns = useMemo(() => ([
     { key: "__index", label: "#", sortable: false },
+    { key: "id", label: "ID" },
     { key: "user", label: "User", render: (v, r) => (
       <div>
         <div className="text-sm font-medium text-gray-900">{r.user?.name || r.user?.email || r.userId}</div>
         <div className="text-xs text-gray-500">{r.user?.email || '-'}</div>
       </div>
     ) },
-    { key: "address", label: "Address", render: (v) => <span className="break-all text-sm">{v}</span> },
+    { key: "userId", label: "User ID" },
+    { key: "address", label: "Address", render: (v) => <span className="break-all text-sm">{v || '-'}</span> },
     { key: "currency", label: "Currency" },
     { key: "network", label: "Network" },
-    { key: "submittedAt", label: "Submitted", render: (v) => v ? new Date(v).toLocaleString() : '-' },
     { key: "status", label: "Status", render: (v, _r, Badge) => (
       <Badge tone={v === 'approved' ? 'green' : v === 'rejected' ? 'red' : 'amber'}>{v}</Badge>
     ) },
+    { key: "submittedAt", label: "Submitted", render: (v) => fmt(v) },
+    { key: "approvedAt", label: "Approved At", render: (v) => fmt(v) },
+    { key: "approvedBy", label: "Approved By" },
+    { key: "rejectionReason", label: "Rejection Reason", render: (v) => v || '-' },
+    { key: "createdAt", label: "Created", render: (v) => fmt(v) },
+    { key: "updatedAt", label: "Updated", render: (v) => fmt(v) },
+    { key: "methodType", label: "Method Type" },
+    { key: "label", label: "Label" },
+    { key: "bankName", label: "Bank Name" },
+    { key: "accountName", label: "Account Name" },
+    { key: "accountNumber", label: "Account #" },
+    { key: "ifscSwiftCode", label: "IFSC/SWIFT" },
+    { key: "accountType", label: "Account Type" },
     { key: "actions", label: "Actions", sortable: false },
   ]), []);
 
@@ -146,7 +162,14 @@ export default function PaymentDetails() {
             title={null}
             rows={pending.map((r, i) => ({ ...r, __index: i+1, actions: r }))}
             columns={pendingColumns}
-            filters={{ searchKeys: ['address','currency','network','status','user.email','user.name'] }}
+            filters={{
+              searchKeys: [
+                'id','userId','address','currency','network','status','approvedBy','rejectionReason',
+                'methodType','label','bankName','accountName','accountNumber','ifscSwiftCode','accountType',
+                'user.email','user.name'
+              ],
+              dateKey: 'submittedAt'
+            }}
             pageSize={10}
           />
         </div>
@@ -162,7 +185,14 @@ export default function PaymentDetails() {
             title={null}
             rows={approved.map((r, i) => ({ ...r, __index: i+1, actions: r }))}
             columns={approvedColumns}
-            filters={{ searchKeys: ['address','currency','network','status','user.email','user.name'] }}
+            filters={{
+              searchKeys: [
+                'id','userId','address','currency','network','status','approvedBy','rejectionReason',
+                'methodType','label','bankName','accountName','accountNumber','ifscSwiftCode','accountType',
+                'user.email','user.name'
+              ],
+              dateKey: 'submittedAt'
+            }}
             pageSize={10}
           />
         </div>
