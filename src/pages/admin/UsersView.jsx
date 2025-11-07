@@ -63,11 +63,14 @@ export default function UsersView(){
       });
       if (comment === undefined) return; // cancelled
 
-      const url = `http://18.175.242.21:5003/api/Users/${encodeURIComponent(accountId)}/AddClientCredit`;
-      const res = await fetch(url, {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${BASE}/admin/mt5/credit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ balance: amount, comment: comment || '' })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ login: accountId, amount, description: comment || '' })
       });
       let ok = res.ok;
       let msg = 'Bonus added successfully';
@@ -85,7 +88,6 @@ export default function UsersView(){
       fetchUser();
       // Log admin transaction
       try {
-        const token = localStorage.getItem('adminToken');
         await fetch(`${BASE}/admin/admin-transactions`, {
           method:'POST',
           headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
@@ -125,11 +127,14 @@ export default function UsersView(){
       });
       if (comment === undefined) return; // cancelled
 
-      const url = `http://18.175.242.21:5003/api/Users/${encodeURIComponent(accountId)}/DeductClientCredit`;
-      const res = await fetch(url, {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${BASE}/admin/mt5/credit/deduct`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ balance: amount, comment: comment || '' })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ login: accountId, amount, description: comment || '' })
       });
       let ok = res.ok;
       let msg = 'Bonus deducted successfully';
@@ -147,7 +152,6 @@ export default function UsersView(){
       fetchUser();
       // Log admin transaction
       try {
-        const token = localStorage.getItem('adminToken');
         await fetch(`${BASE}/admin/admin-transactions`, {
           method:'POST',
           headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
