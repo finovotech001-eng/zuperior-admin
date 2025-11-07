@@ -46,10 +46,30 @@ export default function ReportsWithdrawals() {
     });
 
     Promise.all([wReq, adminTxReq])
-      .then(([wData, adminData]) => {
+      .then(async ([wData, adminData]) => {
         if (stop) return;
         if (!wData?.ok) throw new Error(wData?.error || 'Failed to load withdrawals');
-        if (!adminData?.ok) throw new Error(adminData?.error || 'Failed to load admin transactions');
+        // Fallback to balance-history if admin-transactions not available
+        if (!adminData?.ok) {
+          try {
+            const fh = await fetch(`${BASE}/admin/mt5/balance-history?operation_type=withdraw&limit=500`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const jh = await fh.json();
+            adminData = jh?.ok ? { ok: true, items: (jh.operations||[]).map(op => ({
+              id: op.id,
+              user_email: op.user_email || '-',
+              user_name: op.user_name || '-',
+              mt5_login: op.mt5_login,
+              amount: op.amount,
+              currency: op.currency || 'USD',
+              status: op.status || 'completed',
+              created_at: op.created_at,
+              external_transaction_id: op.external_transaction_id || '-',
+              admin_id: op.admin_id,
+              admin_email: op.admin?.email,
+              admin_role: op.admin?.admin_role || 'admin'
+            })) } : { ok: true, items: [] };
+          } catch { adminData = { ok: true, items: [] }; }
+        }
         const wItems = Array.isArray(wData.items) ? wData.items : [];
         const adminItems = Array.isArray(adminData.items) ? adminData.items : [];
         const wRows = wItems.map(w => ({

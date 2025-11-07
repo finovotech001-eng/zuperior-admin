@@ -23,29 +23,50 @@ export default function ReportsAdminTransactions() {
     fetch(`${BASE}/admin/admin-transactions?${params}`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(async r => {
         try {
-          if (!r.ok) return { ok: true, items: [], total: 0 };
+          if (!r.ok) return { ok: false };
           const ct = r.headers.get('content-type') || '';
-          if (!ct.includes('application/json')) return { ok: true, items: [], total: 0 };
+          if (!ct.includes('application/json')) return { ok: false };
           return await r.json();
-        } catch { return { ok: true, items: [], total: 0 }; }
+        } catch { return { ok: false }; }
       })
-      .then(data => {
+      .then(async data => {
         if (stop) return;
-        if (!data?.ok) throw new Error(data?.error || 'Failed to load');
-        const items = Array.isArray(data.items) ? data.items : [];
-        setRows(items.map(t => ({
-          createdAt: t.created_at,
-          operation: t.operation_type,
-          mt5Login: t.mt5_login,
-          amount: t.amount,
-          currency: t.currency || 'USD',
-          status: t.status,
-          admin: t.admin_email ? `${t.admin_email} (${t.admin_role || 'admin'})` : t.admin_id,
-          userEmail: t.user_email || '-',
-          userName: t.user_name || '-',
-          externalId: t.external_transaction_id || '-',
-          comment: t.comment || '-',
-        })));
+        if (data?.ok) {
+          const items = Array.isArray(data.items) ? data.items : [];
+          setRows(items.map(t => ({
+            createdAt: t.created_at,
+            operation: t.operation_type,
+            mt5Login: t.mt5_login,
+            amount: t.amount,
+            currency: t.currency || 'USD',
+            status: t.status,
+            admin: t.admin_email ? `${t.admin_email} (${t.admin_role || 'admin'})` : t.admin_id,
+            userEmail: t.user_email || '-',
+            userName: t.user_name || '-',
+            externalId: t.external_transaction_id || '-',
+            comment: t.comment || '-',
+          })));
+        } else {
+          // Fallback to balance-history (deposit/withdraw/credit)
+          try {
+            const fh = await fetch(`${BASE}/admin/mt5/balance-history?limit=500`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const jh = await fh.json();
+            const ops = Array.isArray(jh.operations) ? jh.operations : [];
+            setRows(ops.map(op => ({
+              createdAt: op.created_at,
+              operation: op.operation_type,
+              mt5Login: op.mt5_login,
+              amount: op.amount,
+              currency: op.currency || 'USD',
+              status: op.status || 'completed',
+              admin: op.admin?.email ? `${op.admin.email} (${op.admin.admin_role || 'admin'})` : op.admin_id,
+              userEmail: '-',
+              userName: '-',
+              externalId: op.external_transaction_id || '-',
+              comment: op.description || '-',
+            })));
+          } catch { setRows([]); }
+        }
       })
       .catch(e => setError(e.message || String(e)))
       .finally(() => !stop && setLoading(false));

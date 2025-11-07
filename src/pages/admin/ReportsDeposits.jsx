@@ -45,10 +45,28 @@ export default function ReportsDeposits() {
     });
 
     Promise.all([depReq, adminTxReq])
-      .then(([depData, adminData]) => {
+      .then(async ([depData, adminData]) => {
         if (stop) return;
         if (!depData?.ok) throw new Error(depData?.error || 'Failed to load deposits');
-        if (!adminData?.ok) throw new Error(adminData?.error || 'Failed to load admin transactions');
+        // Fallback to balance-history on live if admin-transactions missing
+        if (!adminData?.ok) {
+          try {
+            const fh = await fetch(`${BASE}/admin/mt5/balance-history?operation_type=deposit&limit=500`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const jh = await fh.json();
+            adminData = jh?.ok ? { ok: true, items: (jh.operations||[]).map(op => ({
+              id: op.id,
+              user_email: op.admin?.email || '-', // user email may not be present here
+              user_name: '-',
+              mt5_login: op.mt5_login,
+              amount: op.amount,
+              currency: op.currency || 'USD',
+              status: op.status || 'completed',
+              created_at: op.created_at,
+              admin_email: op.admin?.email,
+              admin_role: op.admin?.admin_role || 'admin'
+            })) } : { ok: true, items: [] };
+          } catch { adminData = { ok: true, items: [] }; }
+        }
         const depItems = Array.isArray(depData.items) ? depData.items : [];
         const adminItems = Array.isArray(adminData.items) ? adminData.items : [];
         const depRows = depItems.map(d => ({
