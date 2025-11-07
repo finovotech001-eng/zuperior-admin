@@ -36,7 +36,14 @@ export default function ReportsWithdrawals() {
 
     const adminTxReq = fetch(`${BASE}/admin/admin-transactions?operation_type=withdraw&limit=500`, {
       headers: { 'Authorization': `Bearer ${token}` }
-    }).then(r => r.json());
+    }).then(async r => {
+      try {
+        if (!r.ok) return { ok: true, items: [] };
+        const ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) return { ok: true, items: [] };
+        return await r.json();
+      } catch { return { ok: true, items: [] }; }
+    });
 
     Promise.all([wReq, adminTxReq])
       .then(([wData, adminData]) => {

@@ -21,7 +21,14 @@ export default function ReportsAdminTransactions() {
     const token = localStorage.getItem('adminToken');
     const params = new URLSearchParams({ limit: '500' }).toString();
     fetch(`${BASE}/admin/admin-transactions?${params}`, { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(r => r.json())
+      .then(async r => {
+        try {
+          if (!r.ok) return { ok: true, items: [], total: 0 };
+          const ct = r.headers.get('content-type') || '';
+          if (!ct.includes('application/json')) return { ok: true, items: [], total: 0 };
+          return await r.json();
+        } catch { return { ok: true, items: [], total: 0 }; }
+      })
       .then(data => {
         if (stop) return;
         if (!data?.ok) throw new Error(data?.error || 'Failed to load');
@@ -85,4 +92,3 @@ export default function ReportsAdminTransactions() {
     />
   );
 }
-

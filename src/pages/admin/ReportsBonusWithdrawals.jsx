@@ -24,7 +24,14 @@ export default function ReportsBonusWithdrawals() {
     fetch(`${BASE}/admin/admin-transactions?operation_type=bonus_deduct&limit=500`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-      .then(r => r.json())
+      .then(async r => {
+        try {
+          if (!r.ok) return { ok: true, items: [] };
+          const ct = r.headers.get('content-type') || '';
+          if (!ct.includes('application/json')) return { ok: true, items: [] };
+          return await r.json();
+        } catch { return { ok: true, items: [] }; }
+      })
       .then(data => {
         if (stop) return;
         if (!data?.ok) throw new Error(data?.error || "Failed to load admin transactions");
