@@ -2,10 +2,16 @@
 import BrandCard from "../components/BrandCard.jsx";
 import ProTable from "../components/ProTable.jsx";
 import EmptyState from "../components/EmptyState.jsx";
-import ReportsBookPnL from "../pages/admin/ReportsBookPnL.jsx";
-import ReportsProfitLoss from "../pages/admin/ReportsProfitLoss.jsx";
-import ReportsLPStatement from "../pages/admin/ReportsLPStatement.jsx";
-import ReportsPartnerReport from "../pages/admin/ReportsPartnerReport.jsx";
+// import ReportsBookPnL from "../pages/admin/ReportsBookPnL.jsx";
+// import ReportsProfitLoss from "../pages/admin/ReportsProfitLoss.jsx";
+// import ReportsLPStatement from "../pages/admin/ReportsLPStatement.jsx";
+// import ReportsPartnerReport from "../pages/admin/ReportsPartnerReport.jsx";
+import ReportsDeposits from "../pages/admin/ReportsDeposits.jsx";
+import ReportsWithdrawals from "../pages/admin/ReportsWithdrawals.jsx";
+import ReportsInternalTransfers from "../pages/admin/ReportsInternalTransfers.jsx";
+import ReportsBonusDeposits from "../pages/admin/ReportsBonusDeposits.jsx";
+import ReportsBonusWithdrawals from "../pages/admin/ReportsBonusWithdrawals.jsx";
+import ReportsAdminTransactions from "../pages/admin/ReportsAdminTransactions.jsx";
 import KycList from "../pages/admin/KycList.jsx";
 import Dashboard from "../pages/admin/Dashboard.jsx";
 import UsersAll from "../pages/admin/UsersAll.jsx";
@@ -47,10 +53,16 @@ export default [
   { path: "my-deals",      element: <EmptyState title="My Deals" subtitle="My executed trades" /> },
 
   /* ----------------------------- REPORTS ------------------------------ */
-  { path: "book-pnl",      element: <ReportsBookPnL /> },
-  { path: "finance",       element: <ReportsProfitLoss /> },
-  { path: "lp-statement",  element: <ReportsLPStatement /> },
-  { path: "ib-dashboard",  element: <ReportsPartnerReport /> },
+  // { path: "book-pnl",      element: <ReportsBookPnL /> },
+  // { path: "finance",       element: <ReportsProfitLoss /> },
+  // { path: "lp-statement",  element: <ReportsLPStatement /> },
+  // { path: "ib-dashboard",  element: <ReportsPartnerReport /> },
+  { path: "deposit-report",        element: <ReportsDeposits /> },
+  { path: "withdrawal-report",     element: <ReportsWithdrawals /> },
+  { path: "internal-transfer",     element: <ReportsInternalTransfers /> },
+  { path: "bonus-deposit-report",  element: <ReportsBonusDeposits /> },
+  { path: "bonus-withdrawal-report", element: <ReportsBonusWithdrawals /> },
+  { path: "admin-transactions", element: <ReportsAdminTransactions /> },
 
   /* ------------------------ CLIENTS & ACCESS -------------------------- */
   { path: "users",                     element: <EmptyState title="Manage Users" subtitle="User management overview" /> },

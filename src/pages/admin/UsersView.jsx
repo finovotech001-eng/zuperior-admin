@@ -34,6 +34,131 @@ export default function UsersView(){
   const [submitting, setSubmitting] = useState(false);
   const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
+  // Bonus actions
+  async function handleAddBonus(accountId){
+    try {
+      const { value: amountStr } = await Swal.fire({
+        title: 'Add Bonus',
+        input: 'number',
+        inputLabel: 'Amount (USD)',
+        inputAttributes: { min: 0, step: 0.01 },
+        inputPlaceholder: 'Enter bonus amount',
+        showCancelButton: true,
+        confirmButtonText: 'Continue',
+      });
+      if (amountStr === undefined) return; // cancelled
+      const amount = Number(amountStr);
+      if (!amount || amount <= 0) {
+        await Swal.fire({ icon:'error', title:'Enter a valid amount' });
+        return;
+      }
+
+      const { value: comment } = await Swal.fire({
+        title: 'Add Comment',
+        input: 'text',
+        inputLabel: 'Optional',
+        inputPlaceholder: 'Reason / note (optional)',
+        showCancelButton: true,
+        confirmButtonText: 'Submit',
+      });
+      if (comment === undefined) return; // cancelled
+
+      const url = `http://18.175.242.21:5003/api/Users/${encodeURIComponent(accountId)}/AddClientCredit`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ balance: amount, comment: comment || '' })
+      });
+      let ok = res.ok;
+      let msg = 'Bonus added successfully';
+      try {
+        const j = await res.json();
+        if (j?.Success === false || j?.ok === false) {
+          ok = false;
+          msg = j?.Message || j?.error || msg;
+        }
+      } catch { /* ignore non-JSON */ }
+      if (!ok) throw new Error(msg);
+
+      await Swal.fire({ icon:'success', title:'Bonus credited', timer:1500, showConfirmButton:false });
+      // Refresh MT5 balances if available
+      fetchUser();
+      // Log admin transaction
+      try {
+        const token = localStorage.getItem('adminToken');
+        await fetch(`${BASE}/admin/admin-transactions`, {
+          method:'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ operation_type:'bonus_add', mt5_login: accountId, amount, currency:'USD', status:'completed', comment })
+        });
+      } catch(_) {}
+    } catch (e) {
+      await Swal.fire({ icon:'error', title:'Bonus credit failed', text: e.message || String(e) });
+    }
+  }
+
+  async function handleWithdrawBonus(accountId){
+    try {
+      const { value: amountStr } = await Swal.fire({
+        title: 'Withdraw Bonus',
+        input: 'number',
+        inputLabel: 'Amount (USD)',
+        inputAttributes: { min: 0, step: 0.01 },
+        inputPlaceholder: 'Enter bonus amount to deduct',
+        showCancelButton: true,
+        confirmButtonText: 'Continue',
+      });
+      if (amountStr === undefined) return; // cancelled
+      const amount = Number(amountStr);
+      if (!amount || amount <= 0) {
+        await Swal.fire({ icon:'error', title:'Enter a valid amount' });
+        return;
+      }
+
+      const { value: comment } = await Swal.fire({
+        title: 'Add Comment',
+        input: 'text',
+        inputLabel: 'Optional',
+        inputPlaceholder: 'Reason / note (optional)',
+        showCancelButton: true,
+        confirmButtonText: 'Submit',
+      });
+      if (comment === undefined) return; // cancelled
+
+      const url = `http://18.175.242.21:5003/api/Users/${encodeURIComponent(accountId)}/DeductClientCredit`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ balance: amount, comment: comment || '' })
+      });
+      let ok = res.ok;
+      let msg = 'Bonus deducted successfully';
+      try {
+        const j = await res.json();
+        if (j?.Success === false || j?.ok === false) {
+          ok = false;
+          msg = j?.Message || j?.error || msg;
+        }
+      } catch { /* ignore non-JSON */ }
+      if (!ok) throw new Error(msg);
+
+      await Swal.fire({ icon:'success', title:'Bonus deducted', timer:1500, showConfirmButton:false });
+      // Refresh MT5 balances if available
+      fetchUser();
+      // Log admin transaction
+      try {
+        const token = localStorage.getItem('adminToken');
+        await fetch(`${BASE}/admin/admin-transactions`, {
+          method:'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ operation_type:'bonus_deduct', mt5_login: accountId, amount, currency:'USD', status:'completed', comment })
+        });
+      } catch(_) {}
+    } catch (e) {
+      await Swal.fire({ icon:'error', title:'Bonus deduction failed', text: e.message || String(e) });
+    }
+  }
+
   const totalMt5Balance = useMemo(() => {
     try {
       return Object.values(mt5Map).reduce((sum, v) => sum + (Number(v?.balance) || 0), 0);
@@ -217,6 +342,14 @@ export default function UsersView(){
                           className="px-2 py-1 rounded-full bg-rose-600 text-white text-xs hover:bg-rose-700 shadow-sm">Withdraw</button>
                 </div>
               ) },
+              { key: 'bonus', label: 'Bonus Actions', sortable: false, render: (v, row) => (
+                <div className="flex items-center gap-2">
+                  <button onClick={()=> handleAddBonus(row.accountId)}
+                          className="px-2 py-1 rounded-full bg-purple-600 text-white text-xs hover:bg-purple-700 shadow-sm">Add Bonus</button>
+                  <button onClick={()=> handleWithdrawBonus(row.accountId)}
+                          className="px-2 py-1 rounded-full bg-gray-700 text-white text-xs hover:bg-gray-800 shadow-sm">Withdraw Bonus</button>
+                </div>
+              ) },
             ]}
             pageSize={5}
             searchPlaceholder="Search by account, group…"
@@ -339,6 +472,21 @@ export default function UsersView(){
                   setActionModal(null);
                   Swal.fire({ icon:'success', title: actionModal.type==='deposit' ? 'Deposit successful' : 'Withdrawal successful', timer:1500, showConfirmButton:false });
                   fetchUser();
+                  // Log in admin_transactions for reporting
+                  try {
+                    await fetch(`${BASE}/admin/admin-transactions`, {
+                      method: 'POST',
+                      headers: { 'Content-Type':'application/json','Authorization':`Bearer ${token}` },
+                      body: JSON.stringify({
+                        operation_type: actionModal.type === 'deposit' ? 'deposit' : 'withdraw',
+                        mt5_login: actionModal.accountId,
+                        amount: amt,
+                        currency: 'USD',
+                        status: 'completed',
+                        comment: actionModal.comment || ''
+                      })
+                    });
+                  } catch(_) {}
                 } catch(e) {
                   Swal.fire({ icon:'error', title: actionModal.type==='deposit' ? 'Deposit failed' : 'Withdrawal failed', text:e.message||String(e) });
                 } finally {
@@ -364,4 +512,3 @@ export default function UsersView(){
     </div>
   );
 }
-

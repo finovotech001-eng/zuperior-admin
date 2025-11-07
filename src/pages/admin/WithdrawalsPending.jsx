@@ -20,6 +20,7 @@ export default function WithdrawalsPending() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [confirmApprove, setConfirmApprove] = useState(null);
+  const [txId, setTxId] = useState("");
   const [approving, setApproving] = useState(false);
   const [confirmReject, setConfirmReject] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -111,14 +112,22 @@ export default function WithdrawalsPending() {
   async function onApprove(row) {
     setApproving(true);
     try {
+      if (!txId || !txId.trim()) {
+        throw new Error('Please enter a transaction ID/hash');
+      }
       const r = await fetch(`${BASE}/admin/withdrawals/${row.id}/approve`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ externalTransactionId: txId.trim() })
       });
       const data = await r.json();
       if (!data?.ok) throw new Error(data?.error || 'Failed to approve');
       setRows(list => list.filter(it => it.id !== row.id));
       setConfirmApprove(null);
+      setTxId("");
       await Swal.fire({ icon: 'success', title: 'Approved', text: data.message || 'Withdrawal approved successfully.', timer: 1500, showConfirmButton: false });
     } catch (e) {
       Swal.fire({ icon:'error', title:'Failed', text: e.message || String(e) });
@@ -166,12 +175,24 @@ export default function WithdrawalsPending() {
       />
 
       {/* Approve Confirm */}
-      <Modal open={!!confirmApprove} onClose={() => setConfirmApprove(null)} title="Approve Withdrawal">
+      <Modal open={!!confirmApprove} onClose={() => { setConfirmApprove(null); setTxId(""); }} title="Approve Withdrawal">
         {confirmApprove && (
           <div className="space-y-4">
             <p>Do you want to approve the withdrawal of <b>{fmtAmount(confirmApprove.amount)}</b> for <b>{confirmApprove.userEmail}</b>?</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Transaction ID / Hash</label>
+              <input
+                type="text"
+                placeholder="Paste the blockchain tx hash or bank ref"
+                value={txId}
+                onChange={e => setTxId(e.target.value)}
+                disabled={approving}
+                className="w-full rounded-md border border-gray-300 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-gray-100 disabled:text-gray-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">This will be saved as External Transaction ID.</p>
+            </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmApprove(null)} className="px-4 h-10 rounded-md border">Cancel</button>
+              <button onClick={() => { setConfirmApprove(null); setTxId(""); }} className="px-4 h-10 rounded-md border">Cancel</button>
               <button
                 onClick={() => onApprove(confirmApprove)}
                 disabled={approving}
