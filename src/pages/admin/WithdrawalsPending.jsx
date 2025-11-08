@@ -54,6 +54,11 @@ export default function WithdrawalsPending() {
           currency: w.currency,
           method: w.method,
           bankDetails: w.bankDetails,
+          bankName: w.bankName,
+          accountName: w.accountName,
+          accountNumber: w.accountNumber,
+          ifscSwiftCode: w.ifscSwiftCode,
+          accountType: w.accountType,
           cryptoAddress: w.cryptoAddress,
           walletAddress: w.walletAddress,
           paymentMethod: w.paymentMethod,
@@ -67,6 +72,34 @@ export default function WithdrawalsPending() {
     return () => { stop = true; };
   }, [BASE]);
 
+  function isDigitsOnly(s) {
+    return typeof s === 'string' && !!s.length && /^\d{6,}$/.test(s.replace(/\s|-/g, ''));
+  }
+
+  function detectType(row) {
+    const pm = String(row.paymentMethod || '').toLowerCase();
+    const method = String(row.method || '').toLowerCase();
+    const pmType = String(row.pmMethodType || '').toLowerCase();
+    const looksBank = pmType === 'bank' || method === 'bank' || method === 'manual' || pm.includes('bank') || pm.includes('wire') || !!row.bankDetails || isDigitsOnly(row.walletAddress);
+    if (looksBank) return { isBank: true, isCrypto: false };
+    const isCrypto = pmType === 'crypto' || method === 'crypto' || pm.includes('usdt') || pm.includes('btc') || pm.includes('eth') || pm.includes('trc') || pm.includes('erc');
+    return { isBank: false, isCrypto };
+  }
+
+  function parseCryptoInfo(row) {
+    const pm = String((row.pmCurrency && row.pmNetwork) ? `${row.pmCurrency}-${row.pmNetwork}` : (row.paymentMethod || '')).toUpperCase();
+    // Expect formats like "USDT-TRC20" or "BTC" etc.
+    let currency = null, network = null;
+    if (pm.includes('-')) {
+      const [tok, net] = pm.split('-');
+      currency = tok || null;
+      network = net || null;
+    } else if (pm) {
+      currency = pm;
+    }
+    return { currency, network };
+  }
+
   const columns = useMemo(() => [
     { key: "__index", label: "Sr No", sortable: false },
     { key: "userEmail", label: "User Email" },
@@ -75,10 +108,59 @@ export default function WithdrawalsPending() {
     { key: "amount", label: "Amount", render: (v) => fmtAmount(v) },
     { key: "currency", label: "Currency" },
     { key: "method", label: "Method" },
-    { key: "paymentMethod", label: "Payment Method" },
-    { key: "bankDetails", label: "Bank Details" },
-    { key: "cryptoAddress", label: "Crypto Address" },
-    { key: "walletAddress", label: "Wallet Address" },
+    { key: "paymentMethod", label: "Payment Method", render: (v, row) => {
+      const t = detectType(row);
+      if (t.isBank) return 'Bank Transfer';
+      if (row.pmCurrency || row.pmNetwork) {
+        return `${row.pmCurrency || ''}${row.pmNetwork ? '-' + row.pmNetwork : ''}` || '-';
+      }
+      return row.paymentMethod || row.method || '-';
+    } },
+    { key: "bankDetails", label: "Bank Details", render: (v, row) => {
+      const t = detectType(row);
+      if (t.isBank) {
+        const hasStructured = row.bankName || row.accountName || row.accountNumber || row.ifscSwiftCode || row.accountType;
+        if (hasStructured) {
+          return (
+            <div className="text-xs text-gray-800 leading-tight whitespace-normal break-words max-w-[560px]">
+              {row.bankName && <div><b>Bank:</b> {row.bankName}</div>}
+              {(row.accountName || row.accountNumber) && (
+                <div>
+                  <b>Account:</b> {row.accountName || '-'} {row.accountNumber ? (<span className="ml-2"># {row.accountNumber}</span>) : null}
+                </div>
+              )}
+              {row.ifscSwiftCode && <div><b>IFSC/SWIFT:</b> {row.ifscSwiftCode}</div>}
+              {row.accountType && <div><b>Type:</b> {row.accountType}</div>}
+            </div>
+          );
+        }
+        if (row.bankDetails) return row.bankDetails;
+        if (isDigitsOnly(row.walletAddress)) return `Account Number: ${row.walletAddress}`;
+        return '-';
+      }
+      // Crypto presentation inside Bank Details column (to match compact design)
+      const { currency, network } = parseCryptoInfo(row);
+      const addr = row.pmAddress || row.walletAddress || row.cryptoAddress || '-';
+      return (
+        <div className="text-xs text-gray-700 leading-tight whitespace-normal break-words max-w-[560px]">
+          <div><b>Address:</b> {addr}</div>
+          <div>
+            <b>Network:</b> {network || '-'}
+            <span className="ml-3"><b>Currency:</b> {currency || '-'}</span>
+          </div>
+        </div>
+      );
+    } },
+    { key: "cryptoAddress", label: "Crypto Address", render: (v, row) => {
+      const t = detectType(row);
+      if (!t.isCrypto) return '-';
+      return row.cryptoAddress || row.walletAddress || '-';
+    } },
+    { key: "walletAddress", label: "Wallet Address", render: (v, row) => {
+      const t = detectType(row);
+      if (!t.isCrypto) return '-';
+      return row.walletAddress || row.cryptoAddress || '-';
+    } },
     { key: "status", label: "Status", render: (v, row, Badge) => (
       <Badge tone="amber">{v}</Badge>
     ) },
