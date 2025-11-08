@@ -49,7 +49,6 @@ export default function WithdrawalsPending() {
           userId: w.userId,
           userEmail: w.User?.email || "-",
           userName: w.User?.name || "-",
-          mt5AccountId: w.MT5Account?.accountId || "-",
           amount: w.amount,
           currency: w.currency,
           method: w.method,
@@ -104,7 +103,6 @@ export default function WithdrawalsPending() {
     { key: "__index", label: "Sr No", sortable: false },
     { key: "userEmail", label: "User Email" },
     { key: "userName", label: "User Name" },
-    { key: "mt5AccountId", label: "MT5 Account ID" },
     { key: "amount", label: "Amount", render: (v) => fmtAmount(v) },
     { key: "currency", label: "Currency" },
     { key: "method", label: "Method" },
@@ -188,7 +186,7 @@ export default function WithdrawalsPending() {
   ], []);
 
   const filters = useMemo(() => ({
-    searchKeys: ["userEmail", "userName", "mt5AccountId", "method", "paymentMethod"],
+    searchKeys: ["userEmail", "userName", "method", "paymentMethod"],
   }), []);
 
   async function onApprove(row) {
