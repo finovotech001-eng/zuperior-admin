@@ -266,6 +266,7 @@ export const ADMIN_MENU = [
           { label: "Deposit Report", to: "deposit-report", icon: Banknote },
           { label: "Withdrawal Report", to: "withdrawal-report", icon: Banknote },
           { label: "Internal Transfer", to: "internal-transfer", icon: Wallet },
+          { label: "Wallet Report", to: "wallet-report", icon: Wallet },
           { label: "Bonus Deposit Report", to: "bonus-deposit-report", icon: IndianRupee },
           { label: "Bonus Withdrawal Report", to: "bonus-withdrawal-report", icon: IndianRupee },
           { label: "Admin Transactions", to: "admin-transactions", icon: ClipboardList },

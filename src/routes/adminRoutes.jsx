@@ -12,6 +12,7 @@ import ReportsInternalTransfers from "../pages/admin/ReportsInternalTransfers.js
 import ReportsBonusDeposits from "../pages/admin/ReportsBonusDeposits.jsx";
 import ReportsBonusWithdrawals from "../pages/admin/ReportsBonusWithdrawals.jsx";
 import ReportsAdminTransactions from "../pages/admin/ReportsAdminTransactions.jsx";
+import ReportsWallet from "../pages/admin/ReportsWallet.jsx";
 import KycList from "../pages/admin/KycList.jsx";
 import Dashboard from "../pages/admin/Dashboard.jsx";
 import UsersAll from "../pages/admin/UsersAll.jsx";
@@ -63,6 +64,7 @@ export default [
   { path: "bonus-deposit-report",  element: <ReportsBonusDeposits /> },
   { path: "bonus-withdrawal-report", element: <ReportsBonusWithdrawals /> },
   { path: "admin-transactions", element: <ReportsAdminTransactions /> },
+  { path: "wallet-report", element: <ReportsWallet /> },
 
   /* ------------------------ CLIENTS & ACCESS -------------------------- */
   { path: "users",                     element: <EmptyState title="Manage Users" subtitle="User management overview" /> },
