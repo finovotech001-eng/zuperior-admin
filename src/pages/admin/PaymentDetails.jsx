@@ -10,6 +10,7 @@ export default function PaymentDetails() {
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
   const [q, setQ] = useState("");
+  const [admins, setAdmins] = useState({});
 
   const fmt = (v) => (v ? new Date(v).toLocaleString() : "-");
 
@@ -30,6 +31,22 @@ export default function PaymentDetails() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Load admins to map approvedBy ids to readable name + email
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch(`${BASE}/admin/admins`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        if (data?.ok && Array.isArray(data.admins)) {
+          const map = {};
+          for (const a of data.admins) map[String(a.id)] = a;
+          setAdmins(map);
+        }
+      } catch {}
+    })();
+  }, []);
 
   const approve = async (id) => {
     const confirm = await Swal.fire({
@@ -96,7 +113,6 @@ export default function PaymentDetails() {
     { key: "createdAt", label: "Created", render: (v) => fmt(v) },
     { key: "updatedAt", label: "Updated", render: (v) => fmt(v) },
     { key: "methodType", label: "Method Type" },
-    { key: "label", label: "Label" },
     { key: "details", label: "Bank Details", render: (_v, row) => {
       const isBank = (row.methodType === 'bank') || !!(row.bankName || row.accountNumber || row.ifscSwiftCode);
       if (isBank) {
@@ -121,10 +137,16 @@ export default function PaymentDetails() {
       <Badge tone={v === 'approved' ? 'green' : v === 'rejected' ? 'red' : 'amber'}>{v}</Badge>
     ) },
     { key: "approvedAt", label: "Approved At", render: (v) => fmt(v) },
-    { key: "approvedBy", label: "Approved By" },
+    { key: "approvedBy", label: "Approved By", render: (v) => {
+      if (!v) return '-';
+      const a = admins[String(v)];
+      if (!a) return String(v);
+      const name = a.username || a.name || a.email || String(v);
+      return `${name} (${a.email})`;
+    } },
     { key: "rejectionReason", label: "Rejection Reason", render: (v) => v || '-' },
     { key: "actions", label: "Actions", sortable: false },
-  ]), []);
+  ]), [admins]);
 
   const pendingColumns = useMemo(() => (
     columns.map(c => (
@@ -174,7 +196,7 @@ export default function PaymentDetails() {
             filters={{
               searchKeys: [
                 'address','currency','network','status','approvedBy','rejectionReason',
-                'methodType','label','bankName','accountName','accountNumber','ifscSwiftCode','accountType',
+                'methodType','bankName','accountName','accountNumber','ifscSwiftCode','accountType',
                 'user.email','user.name'
               ],
               dateKey: 'submittedAt'
@@ -197,7 +219,7 @@ export default function PaymentDetails() {
             filters={{
               searchKeys: [
                 'address','currency','network','status','approvedBy','rejectionReason',
-                'methodType','label','bankName','accountName','accountNumber','ifscSwiftCode','accountType',
+                'methodType','bankName','accountName','accountNumber','ifscSwiftCode','accountType',
                 'user.email','user.name'
               ],
               dateKey: 'submittedAt'
