@@ -87,33 +87,42 @@ export default function PaymentDetails() {
 
   const columns = useMemo(() => ([
     { key: "__index", label: "#", sortable: false },
-    { key: "id", label: "ID" },
     { key: "user", label: "User", render: (v, r) => (
       <div>
         <div className="text-sm font-medium text-gray-900">{r.user?.name || r.user?.email || r.userId}</div>
         <div className="text-xs text-gray-500">{r.user?.email || '-'}</div>
       </div>
     ) },
-    { key: "userId", label: "User ID" },
-    { key: "address", label: "Address", render: (v) => <span className="break-all text-sm">{v || '-'}</span> },
-    { key: "currency", label: "Currency" },
-    { key: "network", label: "Network" },
-    { key: "status", label: "Status", render: (v, _r, Badge) => (
-      <Badge tone={v === 'approved' ? 'green' : v === 'rejected' ? 'red' : 'amber'}>{v}</Badge>
-    ) },
-    { key: "submittedAt", label: "Submitted", render: (v) => fmt(v) },
-    { key: "approvedAt", label: "Approved At", render: (v) => fmt(v) },
-    { key: "approvedBy", label: "Approved By" },
-    { key: "rejectionReason", label: "Rejection Reason", render: (v) => v || '-' },
     { key: "createdAt", label: "Created", render: (v) => fmt(v) },
     { key: "updatedAt", label: "Updated", render: (v) => fmt(v) },
     { key: "methodType", label: "Method Type" },
     { key: "label", label: "Label" },
-    { key: "bankName", label: "Bank Name" },
-    { key: "accountName", label: "Account Name" },
-    { key: "accountNumber", label: "Account #" },
-    { key: "ifscSwiftCode", label: "IFSC/SWIFT" },
-    { key: "accountType", label: "Account Type" },
+    { key: "details", label: "Bank Details", render: (_v, row) => {
+      const isBank = (row.methodType === 'bank') || !!(row.bankName || row.accountNumber || row.ifscSwiftCode);
+      if (isBank) {
+        return (
+          <div className="text-xs text-gray-700 whitespace-normal break-words max-w-[520px] leading-tight">
+            <div><b>Bank:</b> {row.bankName || '-'}</div>
+            <div><b>Account:</b> {row.accountName || '-'} <span className="ml-2"><b>#</b> {row.accountNumber || '-'}</span></div>
+            <div><b>IFSC/SWIFT:</b> {row.ifscSwiftCode || '-'}</div>
+            <div><b>Type:</b> {row.accountType || '-'}</div>
+          </div>
+        );
+      }
+      // Non-bank methods compact details
+      return (
+        <div className="text-xs text-gray-700 whitespace-normal break-words max-w-[520px] leading-tight">
+          <div><b>Address:</b> {row.address || '-'}</div>
+          <div><b>Network:</b> {row.network || '-'} <span className="ml-2"><b>Currency:</b> {row.currency || '-'}</span></div>
+        </div>
+      );
+    } },
+    { key: "status", label: "Status", render: (v, _r, Badge) => (
+      <Badge tone={v === 'approved' ? 'green' : v === 'rejected' ? 'red' : 'amber'}>{v}</Badge>
+    ) },
+    { key: "approvedAt", label: "Approved At", render: (v) => fmt(v) },
+    { key: "approvedBy", label: "Approved By" },
+    { key: "rejectionReason", label: "Rejection Reason", render: (v) => v || '-' },
     { key: "actions", label: "Actions", sortable: false },
   ]), []);
 
@@ -164,7 +173,7 @@ export default function PaymentDetails() {
             columns={pendingColumns}
             filters={{
               searchKeys: [
-                'id','userId','address','currency','network','status','approvedBy','rejectionReason',
+                'address','currency','network','status','approvedBy','rejectionReason',
                 'methodType','label','bankName','accountName','accountNumber','ifscSwiftCode','accountType',
                 'user.email','user.name'
               ],
@@ -187,7 +196,7 @@ export default function PaymentDetails() {
             columns={approvedColumns}
             filters={{
               searchKeys: [
-                'id','userId','address','currency','network','status','approvedBy','rejectionReason',
+                'address','currency','network','status','approvedBy','rejectionReason',
                 'methodType','label','bankName','accountName','accountNumber','ifscSwiftCode','accountType',
                 'user.email','user.name'
               ],

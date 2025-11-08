@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ProTable from "../../components/ProTable.jsx";
 import Modal from "../../components/Modal.jsx";
-import { CheckCircle, Eye } from "lucide-react";
+import { CheckCircle, XCircle, Eye } from "lucide-react";
 
 function fmtDate(v) {
   if (!v) return "-";
@@ -20,6 +20,9 @@ export default function DepositsPending() {
   const [error, setError] = useState("");
   const [confirmApprove, setConfirmApprove] = useState(null);
   const [approving, setApproving] = useState(false);
+  const [confirmReject, setConfirmReject] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
   const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
@@ -47,6 +50,9 @@ export default function DepositsPending() {
           currency: d.currency,
           method: d.method,
           paymentMethod: d.paymentMethod,
+          bankDetails: d.bankDetails,
+          cryptoAddress: d.cryptoAddress,
+          depositAddress: d.depositAddress,
           status: d.status,
           createdAt: d.createdAt,
           updatedAt: d.updatedAt,
@@ -57,6 +63,8 @@ export default function DepositsPending() {
     return () => { stop = true; };
   }, [BASE]);
 
+  // Bank details are now provided by backend joined with manual_gateway per user country
+
   const columns = useMemo(() => [
     { key: "__index", label: "Sr No", sortable: false },
     { key: "userEmail", label: "User Email" },
@@ -64,20 +72,42 @@ export default function DepositsPending() {
     { key: "mt5AccountId", label: "MT5 Account ID" },
     { key: "amount", label: "Amount", render: (v) => fmtAmount(v) },
     { key: "currency", label: "Currency" },
-    { key: "method", label: "Method" },
-    { key: "paymentMethod", label: "Payment Method" },
+    // Combine payment method and bank details in one compact cell
+    { key: "payment", label: "Payment", render: (_v, row) => {
+      const method = row.bankDetails ? 'Bank Transfer' : (row.paymentMethod || row.method || '-');
+      const details = row.bankDetails || '';
+      return (
+        <div className="leading-tight">
+          <div className="text-gray-900 text-sm font-medium">{method}</div>
+          {details ? (
+            <div className="text-xs text-gray-600 whitespace-normal break-words max-w-[520px]">{details}</div>
+          ) : (
+            <div className="text-xs text-gray-400">-</div>
+          )}
+        </div>
+      );
+    } },
     { key: "status", label: "Status", render: (v, row, Badge) => (
       <Badge tone="amber">{v}</Badge>
     ) },
     { key: "createdAt", label: "Created", render: (v) => fmtDate(v) },
     { key: "actions", label: "Actions", sortable: false, render: (v, row) => (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 justify-center">
         <button
           onClick={() => setConfirmApprove(row)}
-          className="h-8 w-8 grid place-items-center rounded-md border border-green-200 text-green-700 hover:bg-green-50"
+          disabled={approving || rejecting}
+          className="h-8 w-8 grid place-items-center rounded-md border border-green-200 text-green-700 hover:bg-green-50 disabled:opacity-50"
           title="Approve Deposit"
         >
           <CheckCircle size={16} />
+        </button>
+        <button
+          onClick={() => { setConfirmReject(row); setRejectReason(""); }}
+          disabled={approving || rejecting}
+          className="h-8 w-8 grid place-items-center rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
+          title="Reject Deposit"
+        >
+          <XCircle size={16} />
         </button>
       </div>
     ) },
@@ -106,6 +136,31 @@ export default function DepositsPending() {
       alert(e.message || String(e));
     } finally {
       setApproving(false);
+    }
+  }
+
+  async function onReject(row) {
+    setRejecting(true);
+    try {
+      const r = await fetch(`${BASE}/admin/deposits/${row.id}/reject`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: rejectReason })
+      });
+      const data = await r.json();
+      if (!data?.ok) throw new Error(data?.error || 'Failed to reject');
+      setRows(list => list.filter(it => it.id !== row.id));
+      setConfirmReject(null);
+      setRejectReason("");
+      setSuccessMessage(data.message || 'Deposit rejected successfully.');
+      setTimeout(() => setSuccessMessage(""), 5000);
+    } catch (e) {
+      alert(e.message || String(e));
+    } finally {
+      setRejecting(false);
     }
   }
 
@@ -148,6 +203,36 @@ export default function DepositsPending() {
           {successMessage}
         </div>
       )}
+
+      {/* Reject Confirm */}
+      <Modal open={!!confirmReject} onClose={() => { if (!rejecting) setConfirmReject(null); }} title="Reject Deposit">
+        {confirmReject && (
+          <div className="space-y-4">
+            <p>Provide a reason and confirm rejection of <b>{fmtAmount(confirmReject.amount)}</b> for <b>{confirmReject.userEmail}</b>.</p>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Rejection Reason (optional)</label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-gray-300 p-2"
+                placeholder="Reason for rejection"
+                disabled={rejecting}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmReject(null)} disabled={rejecting} className="px-4 h-10 rounded-md border disabled:opacity-50">Cancel</button>
+              <button
+                onClick={() => onReject(confirmReject)}
+                disabled={rejecting}
+                className="px-4 h-10 rounded-md bg-red-600 text-white disabled:bg-gray-400"
+              >
+                {rejecting ? "Rejecting..." : "Reject"}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }
