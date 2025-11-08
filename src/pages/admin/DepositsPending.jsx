@@ -72,15 +72,28 @@ export default function DepositsPending() {
     { key: "mt5AccountId", label: "MT5 Account ID" },
     { key: "amount", label: "Amount", render: (v) => fmtAmount(v) },
     { key: "currency", label: "Currency" },
-    // Combine payment method and bank details in one compact cell
-    { key: "payment", label: "Payment", render: (_v, row) => {
+    // Combine payment method and bank details compactly under "Payment Method"
+    { key: "payment", label: "Payment Method", render: (_v, row) => {
       const method = row.bankDetails ? 'Bank Transfer' : (row.paymentMethod || row.method || '-');
-      const details = row.bankDetails || '';
+      const raw = row.bankDetails || '';
+      // Split bank details by " | " and render 2 items per visual row using a grid
+      const parts = raw ? String(raw).split(' | ').map(s => s.trim()).filter(Boolean) : [];
+      const pairs = [];
+      for (let i = 0; i < parts.length; i += 2) {
+        pairs.push([parts[i], parts[i + 1] || '']);
+      }
       return (
         <div className="leading-tight">
           <div className="text-gray-900 text-sm font-medium">{method}</div>
-          {details ? (
-            <div className="text-xs text-gray-600 whitespace-normal break-words max-w-[520px]">{details}</div>
+          {parts.length ? (
+            <div className="text-xs text-gray-600 max-w-[520px]">
+              {pairs.map((p, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <span className="w-1/2 pr-2 truncate" title={p[0]}>{p[0]}</span>
+                  <span className="w-1/2 truncate" title={p[1]}>{p[1]}</span>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="text-xs text-gray-400">-</div>
           )}
@@ -114,7 +127,7 @@ export default function DepositsPending() {
   ], []);
 
   const filters = useMemo(() => ({
-    searchKeys: ["userEmail", "userName", "mt5AccountId", "method", "paymentMethod"],
+    searchKeys: ["userEmail", "userName", "mt5AccountId", "paymentMethod"],
   }), []);
 
   async function onApprove(row) {
