@@ -34,6 +34,8 @@ export default function UsersView(){
   const [submitting, setSubmitting] = useState(false);
   const BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:5003";
 
+
+
   // Bonus actions
   async function handleAddBonus(accountId){
     try {
@@ -74,16 +76,36 @@ export default function UsersView(){
       });
       let ok = res.ok;
       let msg = 'Bonus added successfully';
+      let emailSent = false;
       try {
         const j = await res.json();
         if (j?.Success === false || j?.ok === false) {
           ok = false;
           msg = j?.Message || j?.error || msg;
-        }
+        } else { emailSent = !!j?.emailSent; }
       } catch { /* ignore non-JSON */ }
       if (!ok) throw new Error(msg);
 
-      await Swal.fire({ icon:'success', title:'Bonus credited', timer:1500, showConfirmButton:false });
+      // Send bonus email notification
+      let bonusEmailSent = false;
+      try {
+        const emailResponse = await fetch('https://zuperior-crm-api.onrender.com/api/emails/send-deposit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: data?.user?.email,
+            account_login: accountId,
+            amount: amount.toString(),
+            date: new Date().toISOString(),
+            name: data?.user?.name || data?.user?.email
+          })
+        });
+        bonusEmailSent = emailResponse.ok;
+      } catch(emailError) {
+        console.warn('Bonus email notification failed:', emailError);
+      }
+      
+      await Swal.fire({ icon:'success', title: bonusEmailSent ? 'Bonus credited and email sent' : 'Bonus credited (email failed)', timer: 1800, showConfirmButton: false });
       // Refresh MT5 balances if available
       fetchUser();
       // Log admin transaction
@@ -138,16 +160,36 @@ export default function UsersView(){
       });
       let ok = res.ok;
       let msg = 'Bonus deducted successfully';
+      let emailSent = false;
       try {
         const j = await res.json();
         if (j?.Success === false || j?.ok === false) {
           ok = false;
           msg = j?.Message || j?.error || msg;
-        }
+        } else { emailSent = !!j?.emailSent; }
       } catch { /* ignore non-JSON */ }
       if (!ok) throw new Error(msg);
 
-      await Swal.fire({ icon:'success', title:'Bonus deducted', timer:1500, showConfirmButton:false });
+      // Send bonus withdrawal email notification
+      let bonusEmailSent = false;
+      try {
+        const emailResponse = await fetch('https://zuperior-crm-api.onrender.com/api/emails/send-withdrawal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: data?.user?.email,
+            account_login: accountId,
+            amount: amount.toString(),
+            date: new Date().toISOString(),
+            name: data?.user?.name || data?.user?.email
+          })
+        });
+        bonusEmailSent = emailResponse.ok;
+      } catch(emailError) {
+        console.warn('Bonus withdrawal email notification failed:', emailError);
+      }
+      
+      await Swal.fire({ icon:'success', title: bonusEmailSent ? 'Bonus deducted and email sent' : 'Bonus deducted (email failed)', timer: 1800, showConfirmButton: false });
       // Refresh MT5 balances if available
       fetchUser();
       // Log admin transaction
@@ -483,8 +525,35 @@ export default function UsersView(){
                   const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${token}` }, body: JSON.stringify({ login: actionModal.accountId, amount: amt, description: actionModal.comment }) });
                   const j = await r.json();
                   if (!j?.ok) throw new Error(j?.error||'Failed');
+                  
+                  // Send email notification using external CRM API
+                  let emailSent = false;
+                  try {
+                    const emailUrl = actionModal.type === 'deposit' 
+                      ? 'https://zuperior-crm-api.onrender.com/api/emails/send-deposit'
+                      : 'https://zuperior-crm-api.onrender.com/api/emails/send-withdrawal';
+                    
+                    const emailResponse = await fetch(emailUrl, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        email: u.email,
+                        account_login: actionModal.accountId,
+                        amount: amt.toString(),
+                        date: new Date().toISOString(),
+                        name: u.name || u.email
+                      })
+                    });
+                    emailSent = emailResponse.ok;
+                  } catch(emailError) {
+                    console.warn('Email notification failed:', emailError);
+                  }
+                  
                   setActionModal(null);
-                  Swal.fire({ icon:'success', title: actionModal.type==='deposit' ? 'Deposit successful' : 'Withdrawal successful', timer:1500, showConfirmButton:false });
+                  const title = actionModal.type==='deposit' 
+                    ? (emailSent ? 'Deposit successful and email sent' : 'Deposit successful (email failed)') 
+                    : (emailSent ? 'Withdrawal successful and email sent' : 'Withdrawal successful (email failed)');
+                  Swal.fire({ icon:'success', title, timer: 1800, showConfirmButton:false });
                   fetchUser();
                   // Log in admin_transactions for reporting
                   try {
